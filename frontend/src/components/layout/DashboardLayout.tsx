@@ -47,7 +47,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
   const handleSidebarToggle = () => {
     if (!isMobile) {
       if (isSidebarOpen) {
-        setIsSidebarPinned(false); // Desactivar pin al cerrar
+        setIsSidebarPinned(false);
       }
       setIsSidebarOpen(!isSidebarOpen);
     } else {
@@ -65,11 +65,11 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
   };
 
   const sidebarItems: SidebarItem[] = [
-    { title: 'Empleados', icon: <Users size={20} />, path: '/dashboard/empleados' },
-    { title: 'Clientes', icon: <UserCircle size={20} />, path: '/dashboard/clientes' },
-    { title: 'Inventario', icon: <Car size={20} />, path: '/dashboard/inventario' },
-    { title: 'Créditos', icon: <CreditCard size={20} />, path: '/dashboard/creditos' },
-    { title: 'Transacciones', icon: <ClipboardList size={20} />, path: '/dashboard/transacciones' },
+    { title: 'Empleados', icon: <Users size={20} />, path: '/intranet/employees' },
+    { title: 'Clientes', icon: <UserCircle size={20} />, path: '/intranet/customers' },
+    { title: 'Inventario', icon: <Car size={20} />, path: '/intranet/inventory' },
+    { title: 'Créditos', icon: <CreditCard size={20} />, path: '/intranet/credits' },
+    { title: 'Transacciones', icon: <ClipboardList size={20} />, path: '/intranet/transactions' },
   ];
 
   const shouldShowSidebar = isSidebarOpen || (!isSidebarPinned && isHovered);
@@ -130,7 +130,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
                       className={`p-2 rounded-lg hover:bg-gray-100 ${
                         isSidebarPinned ? 'text-blue-600' : 'text-gray-400'
                       }`}
-                      title={isSidebarPinned ? 'Desfijar sidebar' : 'Fijar sidebar'}
+                      title={isSidebarPinned ? 'Desfijar barra lateral' : 'Fijar barra lateral'}
                     >
                       <Pin size={20} className={isSidebarPinned ? 'rotate-45' : ''} />
                     </button>
@@ -138,7 +138,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
                   <button
                     onClick={handleSidebarToggle}
                     className="p-2 rounded-lg hover:bg-gray-100"
-                    title={isSidebarOpen ? 'Cerrar sidebar' : 'Abrir sidebar'}
+                    title={isSidebarOpen ? 'Cerrar barra lateral' : 'Abrir barra lateral'}
                   >
                     {shouldShowSidebar ? <X size={20} /> : <Menu size={20} />}
                   </button>

@@ -2,13 +2,17 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { DashboardLayout } from '../../components/layout/DashboardLayout';
 import { Dashboard } from './Dashboard';
+import CustomersPage from './customers';
+import EmployeesPage from './employees';
 
-export const Intranet= () => {
+export const Intranet = () => {
   return (
     <DashboardLayout>
       <Routes>
         <Route path="/" element={<Navigate to="dashboard" />} />
         <Route path="dashboard" element={<Dashboard />} />
+        <Route path="customers" element={<CustomersPage />} />
+        <Route path="employees" element={<EmployeesPage />} />
         <Route path="*" element={<Navigate to="." />} />
       </Routes>
     </DashboardLayout>
