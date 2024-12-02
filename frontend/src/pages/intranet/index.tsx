@@ -4,6 +4,7 @@ import { DashboardLayout } from '../../components/layout/DashboardLayout';
 import { Dashboard } from './Dashboard';
 import CustomersPage from './customers';
 import EmployeesPage from './employees';
+import InventoryPage from './inventory';
 
 export const Intranet = () => {
   return (
@@ -13,6 +14,7 @@ export const Intranet = () => {
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="customers" element={<CustomersPage />} />
         <Route path="employees" element={<EmployeesPage />} />
+        <Route path="inventory" element={<InventoryPage />} />
         <Route path="*" element={<Navigate to="." />} />
       </Routes>
     </DashboardLayout>
