@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   ChevronRight, 
   Loader2, 
@@ -217,6 +218,11 @@ export const Login = () => {
               <ChevronRight className="ml-2 h-5 w-5 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
               <div className="absolute inset-0 bg-white/10 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
             </button>
+
+            {/* Forgot Password Section */}
+            <div className="text-center text-gray-500 text-sm mt-4">
+            <Link to="/forgot-password" className="hover:underline">¿Olvidaste tu contraseña?</Link>
+            </div>
           </form>
         </div>
       </div>
