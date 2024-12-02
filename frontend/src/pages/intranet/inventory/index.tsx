@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { SetStateAction, useState } from 'react';
 import {
   Table,
   TableBody,
@@ -25,6 +25,12 @@ interface Vehicle {
   modelo: string;
   anio: number;
   precio: number;
+  num_serie: string;
+  color: string;
+  num_motor: string;
+  num_factura?: string;
+  placas?: string;
+  tarjeta_circulacion?: string;
 }
 
 const vehiclesMock: Vehicle[] = [
@@ -33,14 +39,26 @@ const vehiclesMock: Vehicle[] = [
     marca: "Toyota",
     modelo: "Corolla",
     anio: 2020,
-    precio: 20000
+    precio: 20000,
+    num_serie: "JTDBT923481234567",
+    color: "Blanco",
+    num_motor: "1NZ-FE1234567",
+    num_factura: "FA-2020-001",
+    placas: "ABC-123",
+    tarjeta_circulacion: "TC-2020-001"
   },
   {
     id_vehiculo: 2,
     marca: "Honda",
     modelo: "Civic",
     anio: 2019,
-    precio: 18000
+    precio: 18000,
+    num_serie: "2HGFC2F56KH123456",
+    color: "Gris",
+    num_motor: "R18A1-9876543",
+    num_factura: "FA-2019-002",
+    placas: "DEF-456",
+    tarjeta_circulacion: "TC-2019-002"
   }
 ];
 
@@ -121,7 +139,7 @@ export default function InventoryPage() {
                 placeholder="Buscar vehículo por marca o modelo..."
                 className="pl-8"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e: { target: { value: SetStateAction<string>; }; }) => setSearchTerm(e.target.value)}
               />
             </div>
           </div>
@@ -135,6 +153,12 @@ export default function InventoryPage() {
                   <TableHead>Modelo</TableHead>
                   <TableHead>Año</TableHead>
                   <TableHead>Precio</TableHead>
+                  <TableHead>Número de Serie</TableHead>
+                  <TableHead>Color</TableHead>
+                  <TableHead>Número de Motor</TableHead>
+                  <TableHead>Número de Factura</TableHead>
+                  <TableHead>Placas</TableHead>
+                  <TableHead>Tarjeta de Circulación</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -146,6 +170,12 @@ export default function InventoryPage() {
                     <TableCell>{vehicle.modelo}</TableCell>
                     <TableCell>{vehicle.anio}</TableCell>
                     <TableCell>{vehicle.precio.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                    <TableCell>{vehicle.num_serie}</TableCell>
+                    <TableCell>{vehicle.color}</TableCell>
+                    <TableCell>{vehicle.num_motor}</TableCell>
+                    <TableCell>{vehicle.num_factura}</TableCell>
+                    <TableCell>{vehicle.placas}</TableCell>
+                    <TableCell>{vehicle.tarjeta_circulacion}</TableCell>
                     <TableCell className="text-right">
                       <Button 
                         variant="ghost" 
