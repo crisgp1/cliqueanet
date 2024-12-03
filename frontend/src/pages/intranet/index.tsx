@@ -5,6 +5,7 @@ import { Dashboard } from './Dashboard';
 import CustomersPage from './customers';
 import EmployeesPage from './employees';
 import InventoryPage from './inventory';
+import CreditsPage from './Credits';
 
 export const Intranet = () => {
   return (
@@ -15,6 +16,7 @@ export const Intranet = () => {
         <Route path="customers" element={<CustomersPage />} />
         <Route path="employees" element={<EmployeesPage />} />
         <Route path="inventory" element={<InventoryPage />} />
+        <Route path="credits" element={<CreditsPage />} />
         <Route path="*" element={<Navigate to="." />} />
       </Routes>
     </DashboardLayout>
