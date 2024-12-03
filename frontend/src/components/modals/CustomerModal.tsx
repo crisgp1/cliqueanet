@@ -73,16 +73,26 @@ export function CustomerModal({ isOpen, onClose, onSave, customer }: CustomerMod
                 />
               </div>
               <div className="space-y-2">
-                <label htmlFor="identification_type" className="text-sm font-medium">
-                  Tipo de Identificación
-                </label>
-                <Input
-                  id="identification_type"
-                  name="identification_type"
-                  value={formData.identification_type}
-                  onChange={handleChange}
-                  required
-                />
+               <label htmlFor="identification_type" className="text-sm font-medium">
+                 Tipo de Identificación
+               </label>
+               <select
+                 id="identification_type"
+                 name="identification_type"
+                 value={formData.identification_type}
+                 onChange={handleChange}
+                 required
+                 className="border border-gray-300 rounded-md p-2 w-full"
+                >
+                 <option value="" disabled hidden>
+                   Seleccione una opción
+                 </option>
+                 <option value="INE">INE</option>
+                 <option value="Pasaporte">Pasaporte</option>
+                 <option value="Licencia de Conducir">Licencia de Conducir</option>
+                 <option value="Cédula Profesional">Cédula Profesional</option>
+                 <option value="Otro">Otro</option>
+              </select>
               </div>
               <div className="space-y-2">
                 <label htmlFor="identification_number" className="text-sm font-medium">
