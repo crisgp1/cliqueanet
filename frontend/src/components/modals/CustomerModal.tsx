@@ -17,6 +17,7 @@ interface CustomerModalProps {
     customer_id?: number;
     name: string;
     identification_type: string;
+    identification_number: string;
     birth_date: string;
     phone: string;
     email: string;
@@ -29,6 +30,7 @@ export function CustomerModal({ isOpen, onClose, onSave, customer }: CustomerMod
   const [formData, setFormData] = useState({
     name: customer?.name || '',
     identification_type: customer?.identification_type || '',
+    identification_number: customer?.identification_number || '',
     birth_date: customer?.birth_date ? new Date(customer.birth_date).toISOString().split('T')[0] : '',
     phone: customer?.phone || '',
     email: customer?.email || '',
@@ -72,12 +74,24 @@ export function CustomerModal({ isOpen, onClose, onSave, customer }: CustomerMod
               </div>
               <div className="space-y-2">
                 <label htmlFor="identification_type" className="text-sm font-medium">
-                  Identificación
+                  Tipo de Identificación
                 </label>
                 <Input
                   id="identification_type"
                   name="identification_type"
                   value={formData.identification_type}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="identification_number" className="text-sm font-medium">
+                  Número de Identificación
+                </label>
+                <Input
+                  id="identification_number"
+                  name="identification_number"
+                  value={formData.identification_number}
                   onChange={handleChange}
                   required
                 />

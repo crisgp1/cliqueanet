@@ -23,6 +23,7 @@ interface Customer {
   customer_id: number;
   name: string;
   identification_type: string;
+  identification_number: string;
   birth_date: string;
   phone: string;
   email: string;
@@ -35,6 +36,7 @@ const customersMock: Customer[] = [
     customer_id: 1,
     name: "Ana López",
     identification_type: "INE",
+    identification_number: "1234567890",
     birth_date: "1992-03-15",
     phone: "555-0125",
     email: "ana@ejemplo.com",
@@ -45,6 +47,7 @@ const customersMock: Customer[] = [
     customer_id: 2,
     name: "Carlos Ruiz",
     identification_type: "Pasaporte",
+    identification_number: "A98765432",
     birth_date: "1985-11-20",
     phone: "555-0126",
     email: "carlos@ejemplo.com",
@@ -62,7 +65,8 @@ export default function CustomersPage() {
   const filteredCustomers = customers.filter(customer =>
     customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.curp.toLowerCase().includes(searchTerm.toLowerCase())
+    customer.curp.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    customer.identification_number.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleSave = (customerData: Omit<Customer, 'customer_id'>) => {
@@ -126,7 +130,7 @@ export default function CustomersPage() {
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
               <Input
-                placeholder="Buscar cliente por nombre, correo o CURP..."
+                placeholder="Buscar cliente por nombre, correo, CURP o número de identificación..."
                 className="pl-8"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -141,7 +145,8 @@ export default function CustomersPage() {
                   <TableHead>ID</TableHead>
                   <TableHead>Nombre</TableHead>
                   <TableHead>CURP</TableHead>
-                  <TableHead>Identificación</TableHead>
+                  <TableHead>Tipo de Identificación</TableHead>
+                  <TableHead>Número de Identificación</TableHead>
                   <TableHead>Fecha Nacimiento</TableHead>
                   <TableHead>Teléfono</TableHead>
                   <TableHead>Correo</TableHead>
@@ -156,6 +161,7 @@ export default function CustomersPage() {
                     <TableCell>{customer.name}</TableCell>
                     <TableCell className="font-mono">{customer.curp}</TableCell>
                     <TableCell>{customer.identification_type}</TableCell>
+                    <TableCell>{customer.identification_number}</TableCell>
                     <TableCell>{new Date(customer.birth_date).toLocaleDateString()}</TableCell>
                     <TableCell>{customer.phone}</TableCell>
                     <TableCell>{customer.email}</TableCell>
