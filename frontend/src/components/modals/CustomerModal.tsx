@@ -28,26 +28,46 @@ interface CustomerModalProps {
 
 export function CustomerModal({ isOpen, onClose, onSave, customer }: CustomerModalProps) {
   const [formData, setFormData] = useState({
-    name: customer?.name || '',
-    identification_type: customer?.identification_type || '',
-    identification_number: customer?.identification_number || '',
-    birth_date: customer?.birth_date ? new Date(customer.birth_date).toISOString().split('T')[0] : '',
-    phone: customer?.phone || '',
-    email: customer?.email || '',
-    address: customer?.address || '',
-    curp: customer?.curp || '',
+    name: customer?.name || "",
+    identification_type: customer?.identification_type || "",
+    identification_number: customer?.identification_number || "",
+    birth_date: customer?.birth_date
+      ? new Date(customer.birth_date).toISOString().split("T")[0]
+      : "",
+    phone: customer?.phone || "",
+    email: customer?.email || "",
+    address: customer?.address || "",
+    curp: customer?.curp || "",
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave(formData);
+    handleReset(); // Resetea los datos del formulario
     onClose();
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
+
+  const handleReset = () => {
+    setFormData({
+      name: "",
+      identification_type: "",
+      identification_number: "",
+      birth_date: "",
+      phone: "",
+      email: "",
+      address: "",
+      curp: "",
+    });
+  };
+
+  if (!isOpen) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
