@@ -23,6 +23,8 @@ interface Employee {
   employee_id: number;
   name: string;
   identification_type: string;
+  identification_number: string;
+  curp: string;
   birth_date: string;
   phone: string;
   email: string;
@@ -34,6 +36,8 @@ const employeesMock: Employee[] = [
     employee_id: 1,
     name: "Juan Pérez",
     identification_type: "INE",
+    identification_number: "PERJ870519",
+    curp: "PERJ870519HDFLRN02",
     birth_date: "1990-05-15",
     phone: "555-0123",
     email: "juan@ejemplo.com",
@@ -43,6 +47,8 @@ const employeesMock: Employee[] = [
     employee_id: 2,
     name: "María García",
     identification_type: "Pasaporte",
+    identification_number: "GAGM880820",
+    curp: "GAGM880820MDFLRA02",
     birth_date: "1988-08-20",
     phone: "555-0124",
     email: "maria@ejemplo.com",
@@ -136,8 +142,8 @@ export default function EmployeesPage() {
                 <TableRow>
                   <TableHead>ID</TableHead>
                   <TableHead>Nombre</TableHead>
-                  <TableHead>Identificación</TableHead>
                   <TableHead>Fecha Nacimiento</TableHead>
+                  <TableHead>CURP</TableHead>
                   <TableHead>Teléfono</TableHead>
                   <TableHead>Correo</TableHead>
                   <TableHead>Domicilio</TableHead>
@@ -149,8 +155,8 @@ export default function EmployeesPage() {
                   <TableRow key={employee.employee_id}>
                     <TableCell className="font-medium">{employee.employee_id}</TableCell>
                     <TableCell>{employee.name}</TableCell>
-                    <TableCell>{employee.identification_type}</TableCell>
                     <TableCell>{new Date(employee.birth_date).toLocaleDateString()}</TableCell>
+                    <TableCell>{employee.curp}</TableCell>
                     <TableCell>{employee.phone}</TableCell>
                     <TableCell>{employee.email}</TableCell>
                     <TableCell className="max-w-[200px] truncate" title={employee.address}>

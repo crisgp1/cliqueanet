@@ -17,6 +17,8 @@ interface EmployeeModalProps {
     employee_id?: number;
     name: string;
     identification_type: string;
+    identification_number: string;
+    curp: string;
     birth_date: string;
     phone: string;
     email: string;
@@ -28,6 +30,8 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
   const [formData, setFormData] = useState({
     name: employee?.name || '',
     identification_type: employee?.identification_type || '',
+    identification_number: employee?.identification_number || '',
+    curp: employee?.curp || '',
     birth_date: employee?.birth_date ? new Date(employee.birth_date).toISOString().split('T')[0] : '',
     phone: employee?.phone || '',
     email: employee?.email || '',
@@ -40,7 +44,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
     onClose();
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
@@ -64,20 +68,55 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
                   id="name"
                   name="name"
                   value={formData.name}
-                  onChange={handleChange}
+                   onChange={(e) => handleChange(e as React.ChangeEvent<HTMLSelectElement>)}
                   required
                 />
               </div>
               <div className="space-y-2">
-                <label htmlFor="identification_type" className="text-sm font-medium">
-                  Identificación
+               <label htmlFor="identification_type" className="text-sm font-medium">
+                 Tipo de Identificación
+               </label>
+               <select
+                 id="identification_type"
+                 name="identification_type"
+                 value={formData.identification_type}
+                 onChange={handleChange}
+                 required
+                 className="border border-gray-300 rounded-md p-2 w-full bg-white"
+                >
+                 <option value="" disabled hidden>
+                   Seleccione una opción
+                 </option>
+                 <option value="INE">INE</option>
+                 <option value="Pasaporte">Pasaporte</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="identification_number" className="text-sm font-medium">
+                  Número de Identificación
                 </label>
                 <Input
-                  id="identification_type"
-                  name="identification_type"
-                  value={formData.identification_type}
+                  id="identification_number"
+                  name="identification_number"
+                  value={formData.identification_number}
                   onChange={handleChange}
                   required
+                />
+              </div>
+                <div className="space-y-2">
+                <label htmlFor="curp" className="text-sm font-medium">
+                  CURP
+                </label>
+                <Input
+                  id="curp"
+                  name="curp"
+                  value={formData.curp}
+                  onChange={handleChange}
+                  required
+                  maxLength={18}
+                  pattern="^[A-Z]{4}[0-9]{6}[HM][A-Z]{5}[0-9A-Z][0-9]$"
+                  title="CURP válida (formato: AAAA000000AAAAAA00)"
+                  className="font-mono"
                 />
               </div>
               <div className="space-y-2">
