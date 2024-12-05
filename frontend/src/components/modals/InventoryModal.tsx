@@ -5,9 +5,11 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+} from "../ui/dialog";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Textarea } from "../ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 interface Vehicle {
   id_vehiculo: number;
@@ -21,6 +23,13 @@ interface Vehicle {
   num_factura?: string;
   placas?: string;
   tarjeta_circulacion?: string;
+}
+
+interface Document {
+  id_documento?: number;
+  url: string;
+  tipo_documento: string;
+  descripcion: string;
 }
 
 interface VehicleModalProps {
@@ -48,6 +57,11 @@ export function InventoryModal({
     placas: '',
     tarjeta_circulacion: '',
   });
+
+  const [scanning, setScanning] = useState(false);
+  const [currentDocument, setCurrentDocument] = useState<Document | null>(null);
+  const [documentComment, setDocumentComment] = useState('');
+  const [documentType, setDocumentType] = useState('');
 
   // Effect to update form when selected vehicle changes
   useEffect(() => {
@@ -105,6 +119,52 @@ export function InventoryModal({
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleScan = async () => {
+    setScanning(true);
+    try {
+      // Simulate scanning process
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Mock scanned document
+      setCurrentDocument({
+        url: 'https://example.com/scanned-doc.pdf',
+        tipo_documento: documentType,
+        descripcion: documentComment
+      });
+    } catch (error) {
+      console.error('Error scanning document:', error);
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const handleRescan = () => {
+    setCurrentDocument(null);
+    handleScan();
+  };
+
+  const handleDeleteScan = () => {
+    setCurrentDocument(null);
+    setDocumentComment('');
+    setDocumentType('');
+  };
+
+  const handleSaveDocument = async () => {
+    if (!currentDocument) return;
+    
+    try {
+      // Here you would typically make an API call to save the document
+      console.log('Saving document:', {
+        ...currentDocument,
+        descripcion: documentComment
+      });
+      
+      // Reset form after successful save
+      handleDeleteScan();
+    } catch (error) {
+      console.error('Error saving document:', error);
+    }
   };
 
   return (
@@ -240,6 +300,76 @@ export function InventoryModal({
                   onChange={handleChange}
                 />
               </div>
+            </div>
+
+            {/* Document Scanning Section */}
+            <div className="mt-6 border-t pt-6">
+              <h3 className="text-lg font-medium mb-4">Documentos del Vehículo</h3>
+              
+              {!currentDocument ? (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label htmlFor="documentType" className="text-sm font-medium">
+                      Tipo de Documento
+                    </label>
+                    <Select value={documentType} onValueChange={setDocumentType}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar tipo de documento" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="factura">Factura</SelectItem>
+                        <SelectItem value="tarjeta_circulacion">Tarjeta de Circulación</SelectItem>
+                        <SelectItem value="identificacion">Identificación</SelectItem>
+                        <SelectItem value="otro">Otro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <Button 
+                    type="button"
+                    onClick={handleScan}
+                    disabled={scanning || !documentType}
+                    className="w-full"
+                  >
+                    {scanning ? 'Escaneando...' : 'Escanear Documento'}
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="p-4 border rounded-lg">
+                    <p className="text-sm mb-2">Documento escaneado exitosamente</p>
+                    <div className="space-y-2">
+                      <label htmlFor="documentComment" className="text-sm font-medium">
+                        Comentarios
+                      </label>
+                      <Textarea
+                        id="documentComment"
+                        value={documentComment}
+                        onChange={(e) => setDocumentComment(e.target.value)}
+                        placeholder="Agregar comentarios sobre el documento..."
+                        className="min-h-[100px]"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Button type="button" variant="outline" onClick={handleRescan}>
+                      Reescanear
+                    </Button>
+                    <Button type="button" variant="destructive" onClick={handleDeleteScan}>
+                      Eliminar
+                    </Button>
+                    <Button 
+                      type="button"
+                      onClick={handleSaveDocument}
+                      disabled={!documentComment}
+                      className="ml-auto"
+                    >
+                      Guardar Documento
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>

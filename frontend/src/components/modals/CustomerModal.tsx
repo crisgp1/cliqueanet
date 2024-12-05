@@ -9,33 +9,34 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+// Interfaz según el DDL
 interface CustomerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (customer: any) => void;
-  customer?: {
-    customer_id?: number;
-    name: string;
-    identification_type: string;
-    identification_number: string;
-    birth_date: string;
-    phone: string;
-    email: string;
-    address: string;
-    curp: string;
+  onSave: (cliente: any) => void;
+  cliente?: {
+    id_cliente?: number;  // SERIAL en DB, no se envía en create
+    nombre: string;       // VARCHAR(100) NOT NULL
+    id_tipo_identificacion: number;  // INTEGER con FK
+    num_identificacion: string;      // VARCHAR(50) NOT NULL
+    fecha_nacimiento: string;        // DATE NOT NULL
+    telefono: string;                // VARCHAR(20) NOT NULL
+    correo: string;                  // VARCHAR(100) NOT NULL
+    domicilio: string;               // VARCHAR(200) NOT NULL
+    curp: string;                    // VARCHAR(18) NOT NULL
   };
 }
 
-export function CustomerModal({ isOpen, onClose, onSave, customer }: CustomerModalProps) {
+export function CustomerModal({ isOpen, onClose, onSave, cliente }: CustomerModalProps) {
   const [formData, setFormData] = useState({
-    name: customer?.name || '',
-    identification_type: customer?.identification_type || '',
-    identification_number: customer?.identification_number || '',
-    birth_date: customer?.birth_date ? new Date(customer.birth_date).toISOString().split('T')[0] : '',
-    phone: customer?.phone || '',
-    email: customer?.email || '',
-    address: customer?.address || '',
-    curp: customer?.curp || '',
+    nombre: cliente?.nombre || '',
+    id_tipo_identificacion: cliente?.id_tipo_identificacion || '',
+    num_identificacion: cliente?.num_identificacion || '',
+    fecha_nacimiento: cliente?.fecha_nacimiento ? new Date(cliente.fecha_nacimiento).toISOString().split('T')[0] : '',
+    telefono: cliente?.telefono || '',
+    correo: cliente?.correo || '',
+    domicilio: cliente?.domicilio || '',
+    curp: cliente?.curp || '',
   });
 
   const [isCustomIdentificationModalOpen, setIsCustomIdentificationModalOpen] = useState(false);
@@ -63,7 +64,7 @@ export function CustomerModal({ isOpen, onClose, onSave, customer }: CustomerMod
   const handleCustomIdentificationSave = (customType: string) => {
     setFormData(prev => ({ 
       ...prev, 
-      identification_type: customType 
+      id_tipo_identificacion: customType 
     }));
     setIsCustomIdentificationModalOpen(false);
   };
@@ -75,31 +76,31 @@ export function CustomerModal({ isOpen, onClose, onSave, customer }: CustomerMod
           <form onSubmit={handleSubmit}>
             <DialogHeader>
               <DialogTitle>
-                {customer ? 'Editar Cliente' : 'Nuevo Cliente'}
+                {cliente ? 'Editar Cliente' : 'Nuevo Cliente'}
               </DialogTitle>
             </DialogHeader>
             <div className="py-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label htmlFor="name" className="text-sm font-medium">
+                  <label htmlFor="nombre" className="text-sm font-medium">
                     Nombre
                   </label>
                   <Input
-                    id="name"
-                    name="name"
-                    value={formData.name}
+                    id="nombre"
+                    name="nombre"
+                    value={formData.nombre}
                     onChange={handleChange}
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                 <label htmlFor="identification_type" className="text-sm font-medium">
+                 <label htmlFor="id_tipo_identificacion" className="text-sm font-medium">
                    Tipo de Identificación
                  </label>
                  <select
-                   id="identification_type"
-                   name="identification_type"
-                   value={formData.identification_type}
+                   id="id_tipo_identificacion"
+                   name="id_tipo_identificacion"
+                   value={formData.id_tipo_identificacion}
                    onChange={handleIdentificationTypeChange}
                    required
                    className="border border-gray-300 rounded-md p-2 w-full bg-white"
@@ -107,21 +108,21 @@ export function CustomerModal({ isOpen, onClose, onSave, customer }: CustomerMod
                    <option value="" disabled hidden>
                      Seleccione una opción
                    </option>
-                   <option value="INE">INE</option>
-                   <option value="Pasaporte">Pasaporte</option>
-                   <option value="Licencia de Conducir">Licencia de Conducir</option>
-                   <option value="FM3">FM3</option>
+                   <option value="1">INE</option>
+                   <option value="2">Pasaporte</option>
+                   <option value="3">Licencia de Conducir</option>
+                   <option value="4">Cédula profesional</option>
                    <option value="Otro">Otro</option>
-                </select>
+                                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label htmlFor="identification_number" className="text-sm font-medium">
+                  <label htmlFor="num_identificacion" className="text-sm font-medium">
                     Número de Identificación
                   </label>
                   <Input
-                    id="identification_number"
-                    name="identification_number"
-                    value={formData.identification_number}
+                    id="num_identificacion"
+                    name="num_identificacion"
+                    value={formData.num_identificacion}
                     onChange={handleChange}
                     required
                   />
@@ -143,51 +144,51 @@ export function CustomerModal({ isOpen, onClose, onSave, customer }: CustomerMod
                   />
                 </div>
                 <div className="space-y-2">
-                  <label htmlFor="birth_date" className="text-sm font-medium">
+                  <label htmlFor="fecha_nacimiento" className="text-sm font-medium">
                     Fecha Nacimiento
                   </label>
                   <Input
-                    id="birth_date"
-                    name="birth_date"
+                    id="fecha_nacimiento"
+                    name="fecha_nacimiento"
                     type="date"
-                    value={formData.birth_date}
+                    value={formData.fecha_nacimiento}
                     onChange={handleChange}
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <label htmlFor="phone" className="text-sm font-medium">
+                  <label htmlFor="telefono" className="text-sm font-medium">
                     Teléfono
                   </label>
                   <Input
-                    id="phone"
-                    name="phone"
-                    value={formData.phone}
+                    id="telefono"
+                    name="telefono"
+                    value={formData.telefono}
                     onChange={handleChange}
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <label htmlFor="email" className="text-sm font-medium">
+                  <label htmlFor="correo" className="text-sm font-medium">
                     Correo
                   </label>
                   <Input
-                    id="email"
-                    name="email"
+                    id="correo"
+                    name="correo"
                     type="email"
-                    value={formData.email}
+                    value={formData.correo}
                     onChange={handleChange}
                     required
                   />
                 </div>
                 <div className="md:col-span-2 space-y-2">
-                  <label htmlFor="address" className="text-sm font-medium">
+                  <label htmlFor="domicilio" className="text-sm font-medium">
                     Domicilio
                   </label>
                   <Input
-                    id="address"
-                    name="address"
-                    value={formData.address}
+                    id="domicilio"
+                    name="domicilio"
+                    value={formData.domicilio}
                     onChange={handleChange}
                     required
                   />
@@ -199,7 +200,7 @@ export function CustomerModal({ isOpen, onClose, onSave, customer }: CustomerMod
                 Cancelar
               </Button>
               <Button type="submit">
-                {customer ? 'Guardar Cambios' : 'Crear Cliente'}
+                {cliente ? 'Guardar Cambios' : 'Crear Cliente'}
               </Button>
             </DialogFooter>
           </form>
@@ -214,7 +215,7 @@ export function CustomerModal({ isOpen, onClose, onSave, customer }: CustomerMod
           <div className="py-4">
             <Input
               placeholder="Escriba el tipo de identificación"
-              value={formData.identification_type === 'Otro' ? '' : formData.identification_type}
+              value={formData.id_tipo_identificacion === 'Otro' ? '' : formData.id_tipo_identificacion}
               onChange={(e) => {
                 const customType = e.target.value;
                 handleCustomIdentificationSave(customType);
@@ -227,7 +228,7 @@ export function CustomerModal({ isOpen, onClose, onSave, customer }: CustomerMod
               Cancelar
             </Button>
             <Button type="button" onClick={() => {
-              if (formData.identification_type && formData.identification_type !== 'Otro') {
+              if (formData.id_tipo_identificacion && formData.id_tipo_identificacion !== 'Otro') {
                 setIsCustomIdentificationModalOpen(false);
               }
             }}>

@@ -9,33 +9,37 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-interface EmployeeModalProps {
+interface UsuarioModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (employee: any) => void;
-  employee?: {
-    employee_id?: number;
-    name: string;
-    identification_type: string;
-    identification_number: string;
-    curp: string;
-    birth_date: string;
-    phone: string;
-    email: string;
-    address: string;
+  onSave: (usuario: any) => void;
+  usuario?: {
+    id_empleado?: number;  // SERIAL en DB, no se envía en create
+    nombre: string;        // VARCHAR(100) NOT NULL
+    id_tipo_identificacion: number;  // INTEGER con FK
+    num_identificacion: string;      // VARCHAR(50) NOT NULL
+    curp: string;                    // VARCHAR(18) NOT NULL
+    fecha_nacimiento: string;        // DATE NOT NULL
+    telefono: string;                // VARCHAR(20) NOT NULL
+    correo: string;                  // VARCHAR(100) NOT NULL
+    domicilio: string;               // VARCHAR(200) NOT NULL
+    fecha_contratacion: string;      // DATE NOT NULL
+    id_rol: number;                  // INTEGER NOT NULL con FK
   };
 }
 
-export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeModalProps) {
+export function EmployeeModal({ isOpen, onClose, onSave, usuario }: UsuarioModalProps) {
   const [formData, setFormData] = useState({
-    name: employee?.name || '',
-    identification_type: employee?.identification_type || '',
-    identification_number: employee?.identification_number || '',
-    curp: employee?.curp || '',
-    birth_date: employee?.birth_date ? new Date(employee.birth_date).toISOString().split('T')[0] : '',
-    phone: employee?.phone || '',
-    email: employee?.email || '',
-    address: employee?.address || '',
+    nombre: usuario?.nombre || '',
+    id_tipo_identificacion: usuario?.id_tipo_identificacion || '',
+    num_identificacion: usuario?.num_identificacion || '',
+    curp: usuario?.curp || '',
+    fecha_nacimiento: usuario?.fecha_nacimiento ? new Date(usuario.fecha_nacimiento).toISOString().split('T')[0] : '',
+    telefono: usuario?.telefono || '',
+    correo: usuario?.correo || '',
+    domicilio: usuario?.domicilio || '',
+    fecha_contratacion: usuario?.fecha_contratacion ? new Date(usuario.fecha_contratacion).toISOString().split('T')[0] : '',
+    id_rol: usuario?.id_rol || '',
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -55,31 +59,31 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>
-              {employee ? 'Editar Empleado' : 'Nuevo Empleado'}
+              {usuario ? 'Editar Empleado' : 'Nuevo Empleado'}
             </DialogTitle>
           </DialogHeader>
           <div className="py-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label htmlFor="name" className="text-sm font-medium">
+                <label htmlFor="nombre" className="text-sm font-medium">
                   Nombre
                 </label>
                 <Input
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                   onChange={(e) => handleChange(e as React.ChangeEvent<HTMLSelectElement>)}
+                  id="nombre"
+                  name="nombre"
+                  value={formData.nombre}
+                  onChange={handleChange}
                   required
                 />
               </div>
               <div className="space-y-2">
-               <label htmlFor="identification_type" className="text-sm font-medium">
+               <label htmlFor="id_tipo_identificacion" className="text-sm font-medium">
                  Tipo de Identificación
                </label>
                <select
-                 id="identification_type"
-                 name="identification_type"
-                 value={formData.identification_type}
+                 id="id_tipo_identificacion"
+                 name="id_tipo_identificacion"
+                 value={formData.id_tipo_identificacion}
                  onChange={handleChange}
                  required
                  className="border border-gray-300 rounded-md p-2 w-full bg-white"
@@ -87,23 +91,25 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
                  <option value="" disabled hidden>
                    Seleccione una opción
                  </option>
-                 <option value="INE">INE</option>
-                 <option value="Pasaporte">Pasaporte</option>
+                 <option value="1">INE</option>
+                 <option value="2">Pasaporte</option>
+                 <option value="3">Cédula profesional</option>
+                 <option value="4">Licencia de conducir</option>
                 </select>
               </div>
               <div className="space-y-2">
-                <label htmlFor="identification_number" className="text-sm font-medium">
+                <label htmlFor="num_identificacion" className="text-sm font-medium">
                   Número de Identificación
                 </label>
                 <Input
-                  id="identification_number"
-                  name="identification_number"
-                  value={formData.identification_number}
+                  id="num_identificacion"
+                  name="num_identificacion"
+                  value={formData.num_identificacion}
                   onChange={handleChange}
                   required
                 />
               </div>
-                <div className="space-y-2">
+              <div className="space-y-2">
                 <label htmlFor="curp" className="text-sm font-medium">
                   CURP
                 </label>
@@ -120,54 +126,89 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
                 />
               </div>
               <div className="space-y-2">
-                <label htmlFor="birth_date" className="text-sm font-medium">
+                <label htmlFor="fecha_nacimiento" className="text-sm font-medium">
                   Fecha Nacimiento
                 </label>
                 <Input
-                  id="birth_date"
-                  name="birth_date"
+                  id="fecha_nacimiento"
+                  name="fecha_nacimiento"
                   type="date"
-                  value={formData.birth_date}
+                  value={formData.fecha_nacimiento}
                   onChange={handleChange}
                   required
                 />
               </div>
               <div className="space-y-2">
-                <label htmlFor="phone" className="text-sm font-medium">
+                <label htmlFor="telefono" className="text-sm font-medium">
                   Teléfono
                 </label>
                 <Input
-                  id="phone"
-                  name="phone"
-                  value={formData.phone}
+                  id="telefono"
+                  name="telefono"
+                  value={formData.telefono}
                   onChange={handleChange}
                   required
                 />
               </div>
               <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium">
+                <label htmlFor="correo" className="text-sm font-medium">
                   Correo
                 </label>
                 <Input
-                  id="email"
-                  name="email"
+                  id="correo"
+                  name="correo"
                   type="email"
-                  value={formData.email}
+                  value={formData.correo}
                   onChange={handleChange}
                   required
                 />
               </div>
               <div className="space-y-2">
-                <label htmlFor="address" className="text-sm font-medium">
+                <label htmlFor="domicilio" className="text-sm font-medium">
                   Domicilio
                 </label>
                 <Input
-                  id="address"
-                  name="address"
-                  value={formData.address}
+                  id="domicilio"
+                  name="domicilio"
+                  value={formData.domicilio}
                   onChange={handleChange}
                   required
                 />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="fecha_contratacion" className="text-sm font-medium">
+                  Fecha de Contratación
+                </label>
+                <Input
+                  id="fecha_contratacion"
+                  name="fecha_contratacion"
+                  type="date"
+                  value={formData.fecha_contratacion}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="id_rol" className="text-sm font-medium">
+                  Rol
+                </label>
+                <select
+                  id="id_rol"
+                  name="id_rol"
+                  value={formData.id_rol}
+                  onChange={handleChange}
+                  required
+                  className="border border-gray-300 rounded-md p-2 w-full bg-white"
+                >
+                  <option value="" disabled hidden>
+                    Seleccione un rol
+                  </option>
+                  <option value="1">Administrador</option>
+                  <option value="2">Ventas</option>
+                  <option value="3">RRHH</option>
+                  <option value="4">Gerente_general</option>
+                  <option value="5">Capturista</option>
+                </select>
               </div>
             </div>
           </div>
@@ -176,7 +217,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
               Cancelar
             </Button>
             <Button type="submit">
-              {employee ? 'Guardar Cambios' : 'Crear Empleado'}
+              {usuario ? 'Guardar Cambios' : 'Crear Empleado'}
             </Button>
           </DialogFooter>
         </form>
@@ -184,3 +225,4 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
     </Dialog>
   );
 }
+

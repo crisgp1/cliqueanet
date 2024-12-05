@@ -5,8 +5,8 @@ import { Dashboard } from './Dashboard';
 import CustomersPage from './customers';
 import EmployeesPage from './employees';
 import InventoryPage from './inventory';
-import CreditsPage from './Credits';
-import TransactionsPage from './Transactions';
+import CreditsPage from './credits';
+import TransactionsPage from './transactions';
 
 export const Intranet = () => {
   return (
