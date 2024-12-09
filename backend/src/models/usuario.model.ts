@@ -1,25 +1,9 @@
-import { Model, DataTypes } from 'sequelize';
-import sequelize from '../config/database';
+import { Table, Column, Model, DataType, HasMany } from 'sequelize-typescript';
 import { hashPassword, comparePassword, generarToken } from '../middlewares/auth.middleware';
 import { LoginCredentials, RolUsuario } from '../types';
-
-interface UsuarioAttributes {
-  id_empleado: number;
-  nombre: string;
-  id_tipo_identificacion: number;
-  num_identificacion: string;
-  fecha_nacimiento: Date;
-  telefono: string;
-  correo: string;
-  curp: string;
-  domicilio: string;
-  fecha_contratacion: Date;
-  id_rol: number;
-  password: string;
-  num_empleado: string;
-}
-
-interface UsuarioCreationAttributes extends Omit<UsuarioAttributes, 'id_empleado'> {}
+import * as UAParser from 'ua-parser-js';
+import * as geoip from 'geoip-lite';
+import { LoginHistory } from './login-history.model';
 
 // Mapeo entre IDs de rol y RolUsuario enum
 const rolMapping: { [key: number]: RolUsuario } = {
@@ -30,28 +14,150 @@ const rolMapping: { [key: number]: RolUsuario } = {
   5: RolUsuario.Capturista
 };
 
-class Usuario extends Model<UsuarioAttributes, UsuarioCreationAttributes> {
-  public id_empleado!: number;
-  public nombre!: string;
-  public id_tipo_identificacion!: number;
-  public num_identificacion!: string;
-  public fecha_nacimiento!: Date;
-  public telefono!: string;
-  public correo!: string;
-  public curp!: string;
-  public domicilio!: string;
-  public fecha_contratacion!: Date;
-  public id_rol!: number;
-  public password!: string;
-  public num_empleado!: string;
+@Table({
+  tableName: 'usuarios',
+  timestamps: false
+})
+export class Usuario extends Model {
+  @Column({
+    type: DataType.INTEGER,
+    primaryKey: true,
+    autoIncrement: true,
+    field: 'id_empleado'
+  })
+  id_empleado!: number;
+
+  @Column({
+    type: DataType.STRING(100),
+    allowNull: false
+  })
+  nombre!: string;
+
+  @Column({
+    type: DataType.INTEGER,
+    allowNull: true,
+    field: 'id_tipo_identificacion',
+    references: {
+      model: 'tipos_identificacion',
+      key: 'id_tipo_identificacion'
+    }
+  })
+  id_tipo_identificacion!: number;
+
+  @Column({
+    type: DataType.STRING(50),
+    allowNull: false,
+    field: 'num_identificacion'
+  })
+  num_identificacion!: string;
+
+  @Column({
+    type: DataType.DATE,
+    allowNull: false,
+    field: 'fecha_nacimiento'
+  })
+  fecha_nacimiento!: Date;
+
+  @Column({
+    type: DataType.STRING(20),
+    allowNull: false
+  })
+  telefono!: string;
+
+  @Column({
+    type: DataType.STRING(100),
+    allowNull: false,
+    unique: true
+  })
+  correo!: string;
+
+  @Column({
+    type: DataType.STRING(18),
+    allowNull: false
+  })
+  curp!: string;
+
+  @Column({
+    type: DataType.STRING(200),
+    allowNull: false
+  })
+  domicilio!: string;
+
+  @Column({
+    type: DataType.DATE,
+    allowNull: false,
+    field: 'fecha_contratacion'
+  })
+  fecha_contratacion!: Date;
+
+  @Column({
+    type: DataType.INTEGER,
+    allowNull: false,
+    field: 'id_rol',
+    references: {
+      model: 'roles_usuario',
+      key: 'id_rol'
+    }
+  })
+  id_rol!: number;
+
+  @Column({
+    type: DataType.STRING(255),
+    allowNull: false
+  })
+  password!: string;
+
+  @Column({
+    type: DataType.STRING(20),
+    allowNull: true,
+    unique: true,
+    field: 'num_empleado'
+  })
+  num_empleado!: string;
+
+  @HasMany(() => LoginHistory, {
+    foreignKey: 'id_empleado',
+    as: 'historialLogin'
+  })
+  historialLogin?: LoginHistory[];
 
   // Método para obtener el rol como enum
   public getRolEnum(): RolUsuario {
     return rolMapping[this.id_rol] || RolUsuario.Capturista;
   }
 
+  private static async recordLoginHistory(
+    usuario: Usuario,
+    ip_address: string,
+    user_agent: string
+  ) {
+    try {
+      const parser = new UAParser.UAParser();
+      parser.setUA(user_agent);
+      const result = parser.getResult();
+      const geo = geoip.lookup(ip_address);
+      
+      const browser = `${result.browser.name || ''} ${result.browser.version || ''}`.trim();
+      const device = `${result.device.vendor || ''} ${result.device.model || ''} ${result.os.name || ''}`.trim();
+
+      await LoginHistory.create({
+        id_empleado: usuario.id_empleado,
+        fecha_login: new Date(),
+        ip_address,
+        user_agent,
+        browser,
+        device,
+        country: geo?.country || 'Unknown',
+        city: geo?.city || 'Unknown'
+      });
+    } catch (error) {
+      console.error('Error al registrar historial de login:', error);
+      // No lanzamos el error para no interrumpir el login
+    }
+  }
+
   // Método estático para el login
-  static async login(credentials: LoginCredentials): Promise<{ token: string; usuario: Omit<UsuarioAttributes, 'password'> } | null> {
+  public static async login(credentials: LoginCredentials): Promise<{ token: string; usuario: any; lastLogin?: any } | null> {
     try {
       const whereClause = credentials.employeeId 
         ? { num_empleado: credentials.employeeId }
@@ -82,13 +188,29 @@ class Usuario extends Model<UsuarioAttributes, UsuarioCreationAttributes> {
         rol: usuario.getRolEnum()
       });
 
+      // Registrar el historial de login si se proporcionaron los datos
+      if (credentials.ip_address && credentials.user_agent) {
+        await this.recordLoginHistory(
+          usuario,
+          credentials.ip_address,
+          credentials.user_agent
+        );
+      }
+
+      // Obtener el último login
+      const lastLogin = await LoginHistory.findOne({
+        where: { id_empleado: usuario.id_empleado },
+        order: [['fecha_login', 'DESC']]
+      });
+
       // Excluir la contraseña de la respuesta
       const { password, ...usuarioSinPassword } = usuario.toJSON();
       
       console.log('✅ Login exitoso');
       return {
         token,
-        usuario: usuarioSinPassword
+        usuario: usuarioSinPassword,
+        lastLogin
       };
     } catch (error) {
       console.error('❌ Error en login:', error);
@@ -96,79 +218,5 @@ class Usuario extends Model<UsuarioAttributes, UsuarioCreationAttributes> {
     }
   }
 }
-
-Usuario.init(
-  {
-    id_empleado: {
-      type: DataTypes.INTEGER,
-      autoIncrement: true,
-      primaryKey: true,
-    },
-    nombre: {
-      type: DataTypes.STRING(100),
-      allowNull: false,
-    },
-    id_tipo_identificacion: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-      references: {
-        model: 'tipos_identificacion',
-        key: 'id_tipo_identificacion'
-      }
-    },
-    num_identificacion: {
-      type: DataTypes.STRING(50),
-      allowNull: false,
-    },
-    fecha_nacimiento: {
-      type: DataTypes.DATE,
-      allowNull: false,
-    },
-    telefono: {
-      type: DataTypes.STRING(20),
-      allowNull: false,
-    },
-    correo: {
-      type: DataTypes.STRING(100),
-      allowNull: false,
-      unique: true,
-    },
-    curp: {
-      type: DataTypes.STRING(18),
-      allowNull: false,
-    },
-    domicilio: {
-      type: DataTypes.STRING(200),
-      allowNull: false,
-    },
-    fecha_contratacion: {
-      type: DataTypes.DATE,
-      allowNull: false,
-    },
-    id_rol: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: 'roles_usuario',
-        key: 'id_rol'
-      }
-    },
-    password: {
-      type: DataTypes.STRING(255),
-      allowNull: false,
-    },
-    num_empleado: {
-      type: DataTypes.STRING(20),
-      allowNull: true,
-      unique: true
-    }
-  },
-  {
-    sequelize,
-    modelName: 'Usuario',
-    tableName: 'usuarios',
-    timestamps: false,
-  }
-);
 
 export default Usuario;

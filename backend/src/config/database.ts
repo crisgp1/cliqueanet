@@ -1,5 +1,6 @@
-import { Sequelize } from 'sequelize';
+import { Sequelize } from 'sequelize-typescript';
 import dotenv from 'dotenv';
+import path from 'path';
 
 dotenv.config();
 
@@ -19,6 +20,11 @@ const sequelize = new Sequelize({
   password: DB_PASSWORD,
   database: DB_NAME,
   logging: false,
+  modelMatch: (filename, member) => {
+    const modelName = filename.substring(0, filename.indexOf('.model')).replace(/-/g, '');
+    return modelName === member.toLowerCase();
+  },
+  models: [path.join(__dirname, '..', 'models', '**', '*.model.{ts,js}')],
   pool: {
     max: 20,
     min: 0,

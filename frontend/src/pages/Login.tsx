@@ -7,11 +7,13 @@ import {
   UserCircle2,
   ShieldCheck,
   Eye,
-  EyeOff
+  EyeOff,
+  Clock
 } from 'lucide-react';
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { authService } from '../services/auth.service';
 import { useToast } from '../components/ui/use-toast';
+import { LoginHistory, LoginResponse } from '../types';
 
 export const Login = () => {
   const navigate = useNavigate();
@@ -21,6 +23,21 @@ export const Login = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  const formatLastLogin = (lastLogin: LoginHistory) => {
+    const date = new Date(lastLogin.fecha_login);
+    const formattedDate = date.toLocaleDateString('es-MX', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    return `Último acceso: ${formattedDate}
+Desde: ${lastLogin.browser} en ${lastLogin.device}
+Ubicación: ${lastLogin.city}, ${lastLogin.country}`;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,16 +53,17 @@ export const Login = () => {
     
     try {
       console.log('🚀 Attempting login...');
-      const response = await authService.login({
+      const response: LoginResponse = await authService.login({
         employeeId,
         password
       });
 
       console.log('🚀 Login response:', response);
 
-      if (response.success && response.data) {
+      if (response.success && response.data?.token && response.data?.usuario) {
         console.log('🚀 Login successful, showing toast...');
         
+        // Show welcome toast
         toast({
           title: "¡Inicio de sesión exitoso!",
           description: "Bienvenido al sistema",
@@ -53,6 +71,26 @@ export const Login = () => {
           className: "bg-green-500 text-white border-none",
           duration: 3000,
         });
+
+        // If there's last login info, show it in a separate toast
+        if (response.data.lastLogin) {
+          setTimeout(() => {
+            toast({
+              title: "Información de acceso anterior",
+              description: (
+                <div className="mt-2 text-sm space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    {formatLastLogin(response.data.lastLogin!)}
+                  </div>
+                </div>
+              ),
+              variant: "default",
+              className: "bg-blue-500 text-white border-none",
+              duration: 5000,
+            });
+          }, 1000);
+        }
 
         console.log('🚀 Toast shown, waiting before navigation...');
 

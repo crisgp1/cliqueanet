@@ -56,6 +56,4 @@ export class AjusteValorVehiculo extends Model {
     declare vehiculo: Vehiculo;
 }
 
-sequelize.addModels([AjusteValorVehiculo]);
-
 export default AjusteValorVehiculo;

@@ -21,6 +21,27 @@ export enum RolUsuario {
   Capturista = 5
 }
 
+// Interfaces para Login History
+export interface LoginHistory {
+  id_login_history: number;
+  id_empleado: number;
+  fecha_login: Date;
+  ip_address: string;
+  user_agent: string;
+  browser: string;
+  device: string;
+  country: string;
+  city: string;
+}
+
+export interface CreateLoginHistory extends Omit<LoginHistory, 'id_login_history'> {}
+
+export interface LoginResponse {
+  token: string;
+  usuario: Omit<Usuario, 'password'>;
+  lastLogin?: LoginHistory;
+}
+
 // Interfaces
 export interface Usuario {
   id_empleado: number;
@@ -41,6 +62,8 @@ export interface LoginCredentials {
   employeeId?: string;
   correo?: string;
   password: string;
+  ip_address?: string;
+  user_agent?: string;
 }
 
 export interface CreateUsuario {

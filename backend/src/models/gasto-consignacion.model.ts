@@ -1,5 +1,4 @@
 import { Table, Column, Model, DataType, ForeignKey, BelongsTo } from 'sequelize-typescript';
-import sequelize from '../config/database';
 import { Consignacion } from './consignacion.model';
 
 @Table({
@@ -54,7 +53,5 @@ export class GastoConsignacion extends Model {
     @BelongsTo(() => Consignacion)
     declare consignacion: Consignacion;
 }
-
-sequelize.addModels([GastoConsignacion]);
 
 export default GastoConsignacion;

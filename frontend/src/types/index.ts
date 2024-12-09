@@ -20,11 +20,24 @@ export interface Usuario {
   id_rol: RolUsuario;
 }
 
+export interface LoginHistory {
+  id_login_history: number;
+  id_empleado: number;
+  fecha_login: string;
+  ip_address: string;
+  user_agent: string;
+  browser: string;
+  device: string;
+  country: string;
+  city: string;
+}
+
 export interface LoginResponse {
   success: boolean;
   data?: {
     token: string;
     usuario: Usuario;
+    lastLogin?: LoginHistory;
   };
   message: string;
 }
@@ -33,4 +46,6 @@ export interface LoginCredentials {
   employeeId?: string;
   correo?: string;
   password: string;
+  ip_address?: string;
+  user_agent?: string;
 }

@@ -1,6 +1,7 @@
 import app from '../app';
 import sequelize from './config/database';
 import dotenv from 'dotenv';
+import { initializeAssociations } from './models/modelAssociations';
 
 // Configuración de variables de entorno
 dotenv.config();
@@ -13,6 +14,14 @@ const startServer = async () => {
     // Verificar conexión a la base de datos
     await sequelize.authenticate();
     console.log('Conexión a la base de datos establecida correctamente.');
+
+    // Asegurarse de que los modelos estén cargados
+    await sequelize.sync({ alter: false });
+    console.log('Modelos cargados correctamente.');
+
+    // Inicializar asociaciones de modelos
+    initializeAssociations();
+    console.log('Asociaciones de modelos inicializadas correctamente.');
 
     // Sincronizar modelos con la base de datos (no forzar en producción)
     if (process.env.NODE_ENV !== 'production') {
@@ -29,6 +38,12 @@ const startServer = async () => {
     process.exit(1);
   }
 };
+
+// Manejo de errores no capturados
+process.on('unhandledRejection', (error) => {
+  console.error('Error no manejado:', error);
+  process.exit(1);
+});
 
 // Iniciar el servidor
 startServer();

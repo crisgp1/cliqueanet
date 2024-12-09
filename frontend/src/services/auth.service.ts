@@ -1,16 +1,30 @@
 import axios from 'axios';
-import { LoginResponse, LoginCredentials } from '../types';
+import { LoginResponse, LoginCredentials, LoginHistory } from '../types';
 
 const API_URL = 'http://localhost:3001/api';
 
 class AuthService {
   async login(credentials: LoginCredentials): Promise<LoginResponse> {
     try {
-      const response = await axios.post<LoginResponse>(`${API_URL}/usuarios/login`, credentials);
+      // Add IP address and user agent to credentials
+      const enrichedCredentials = {
+        ...credentials,
+        user_agent: window.navigator.userAgent,
+        // We'll get the IP from the server side since it's more reliable
+        ip_address: '0.0.0.0' // This will be overwritten by the server
+      };
+
+      const response = await axios.post<LoginResponse>(`${API_URL}/usuarios/login`, enrichedCredentials);
+      
       if (response.data.success && response.data.data) {
         // Store user data and token in localStorage
         localStorage.setItem('user', JSON.stringify(response.data.data.usuario));
         localStorage.setItem('token', response.data.data.token);
+        
+        // Store last login info if available
+        if (response.data.data.lastLogin) {
+          localStorage.setItem('lastLogin', JSON.stringify(response.data.data.lastLogin));
+        }
         
         // Set default Authorization header for future requests
         axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.data.token}`;
@@ -34,6 +48,7 @@ class AuthService {
   logout(): void {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
+    localStorage.removeItem('lastLogin');
     // Remove Authorization header
     delete axios.defaults.headers.common['Authorization'];
   }
@@ -42,6 +57,14 @@ class AuthService {
     const userStr = localStorage.getItem('user');
     if (userStr) {
       return JSON.parse(userStr);
+    }
+    return null;
+  }
+
+  getLastLogin(): LoginHistory | null {
+    const lastLoginStr = localStorage.getItem('lastLogin');
+    if (lastLoginStr) {
+      return JSON.parse(lastLoginStr);
     }
     return null;
   }
