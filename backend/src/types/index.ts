@@ -25,20 +25,50 @@ export enum RolUsuario {
 export interface Usuario {
   id_empleado: number;
   nombre: string;
-  tipo_identificacion: string;
+  tipo_identificacion: number;
   num_identificacion: string;
   fecha_nacimiento: Date;
   telefono: string;
   correo: string;
+  curp: string;
   domicilio: string;
   fecha_contratacion: Date;
-  rol: RolUsuario;
+  id_rol: RolUsuario;
   password: string;
 }
 
 export interface LoginCredentials {
-  correo: string;
+  employeeId?: string;
+  correo?: string;
   password: string;
+}
+
+export interface CreateUsuario {
+  nombre: string;
+  tipo_identificacion: number;
+  num_identificacion: string;
+  fecha_nacimiento: Date;
+  telefono: string;
+  correo: string;
+  curp: string;
+  domicilio: string;
+  fecha_contratacion: Date;
+  id_rol: RolUsuario;
+  password: string;
+}
+
+export interface UpdateUsuario {
+  nombre?: string;
+  tipo_identificacion?: number;
+  num_identificacion?: string;
+  fecha_nacimiento?: Date;
+  telefono?: string;
+  correo?: string;
+  curp?: string;
+  domicilio?: string;
+  fecha_contratacion?: Date;
+  id_rol?: RolUsuario;
+  password?: string;
 }
 
 export interface Cliente {
@@ -114,7 +144,6 @@ export interface VentaEmpleado {
 }
 
 // Tipos para crear nuevos registros (sin IDs)
-export type CreateUsuario = Omit<Usuario, 'id_empleado'>;
 export type CreateCliente = Omit<Cliente, 'id_cliente'>;
 export type CreateVehiculo = Omit<Vehiculo, 'id_vehiculo'>;
 export type CreateCredito = Omit<Credito, 'id_credito'>;
@@ -124,7 +153,6 @@ export type CreateNomina = Omit<Nomina, 'id_nomina'>;
 export type CreateVenta = Omit<Venta, 'id_venta'>;
 
 // Tipos para actualizar registros (todos los campos opcionales excepto ID)
-export type UpdateUsuario = Partial<Omit<Usuario, 'id_empleado'>> & { id_empleado: number };
 export type UpdateCliente = Partial<Omit<Cliente, 'id_cliente'>> & { id_cliente: number };
 export type UpdateVehiculo = Partial<Omit<Vehiculo, 'id_vehiculo'>> & { id_vehiculo: number };
 export type UpdateCredito = Partial<Omit<Credito, 'id_credito'>> & { id_credito: number };

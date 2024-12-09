@@ -1,4 +1,4 @@
-import { Pool, PoolConfig } from 'pg';
+import { Sequelize } from 'sequelize';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -11,37 +11,38 @@ const {
   DB_NAME,
 } = process.env;
 
-const config: PoolConfig = {
-  user: DB_USER,
-  password: DB_PASSWORD,
+const sequelize = new Sequelize({
+  dialect: 'postgres',
   host: DB_HOST,
   port: parseInt(DB_PORT || '5432'),
+  username: DB_USER,
+  password: DB_PASSWORD,
   database: DB_NAME,
-  // Configuración adicional para mejorar la estabilidad
-  max: 20, // máximo número de clientes en el pool
-  idleTimeoutMillis: 30000, // tiempo máximo que un cliente puede estar inactivo
-  connectionTimeoutMillis: 2000, // tiempo máximo para establecer una conexión
-};
-
-const pool = new Pool(config);
-
-// Evento para manejar errores del pool
-pool.on('error', (err) => {
-  console.error('Error inesperado en el cliente de postgres', err);
-  process.exit(-1);
+  logging: false,
+  pool: {
+    max: 20,
+    min: 0,
+    acquire: 30000,
+    idle: 10000
+  },
+  dialectOptions: {
+    ssl: {
+      require: true,
+      rejectUnauthorized: false
+    }
+  }
 });
 
-// Función para probar la conexión
+// Test the connection
 export const testConnection = async (): Promise<boolean> => {
   try {
-    const client = await pool.connect();
-    await client.query('SELECT NOW()');
-    client.release();
+    await sequelize.authenticate();
+    console.log('Database connection has been established successfully.');
     return true;
   } catch (error) {
-    console.error('Error al probar la conexión:', error);
+    console.error('Unable to connect to the database:', error);
     return false;
   }
 };
 
-export default pool;
+export default sequelize;

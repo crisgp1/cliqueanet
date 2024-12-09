@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   ChevronRight, 
   Loader2, 
@@ -12,8 +12,10 @@ import {
   EyeOff
 } from 'lucide-react';
 import { Alert, AlertDescription } from '../components/ui/alert';
+import { authService } from '../services/auth.service';
 
 export const Login = () => {
+  const navigate = useNavigate();
   const [employeeId, setEmployeeId] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -61,10 +63,18 @@ export const Login = () => {
     setError('');
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log('Login attempt:', { employeeId, password });
+      const response = await authService.login({
+        employeeId,
+        password
+      });
+
+      if (response.success && response.data) {
+        navigate('/intranet');
+      } else {
+        setError(response.message);
+      }
     } catch (err) {
-      setError('Error al iniciar sesión. Por favor intente nuevamente.');
+      setError('Error de conexión con el servidor. Por favor intente nuevamente.');
     } finally {
       setLoading(false);
     }
@@ -76,7 +86,7 @@ export const Login = () => {
   };
 
   return (
-    <div className="w-full h-full flex flex-col  items-center px-4">
+    <div className="w-full h-full flex flex-col items-center px-4">
       {/* Error Alert */}
       <div className={`w-full max-w-md transition-all duration-300 ease-in-out ${
         error ? 'opacity-100 translate-y-0 mb-4' : 'opacity-0 -translate-y-full mb-0'
@@ -221,7 +231,7 @@ export const Login = () => {
 
             {/* Forgot Password Section */}
             <div className="text-center text-gray-500 text-sm mt-4">
-            <Link to="/forgot-password" className="hover:underline">¿Olvidaste tu contraseña?</Link>
+              <Link to="/forgot-password" className="hover:underline">¿Olvidaste tu contraseña?</Link>
             </div>
           </form>
         </div>

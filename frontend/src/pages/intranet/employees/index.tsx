@@ -6,53 +6,69 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "../../../components/ui/table";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Search, Plus, Pencil, Trash2 } from 'lucide-react';
-import { EmployeeModal } from '@/components/modals/EmployeeModal';
+} from "../../../components/ui/card";
+import { Button } from "../../../components/ui/button";
+import { Input } from "../../../components/ui/input";
+import { Search, Plus, Pencil, Trash2, Eye } from 'lucide-react';
+import { EmployeeModal } from '../../../components/modals/EmployeeModal';
+import { ViewEmployeeDocumentsModal } from '../../../components/modals/ViewEmployeeDocumentsModal';
 
 interface Employee {
-  employee_id: number;
-  name: string;
-  identification_type: string;
-  identification_number: string;
+  id_empleado?: number;
+  nombre: string;
+  id_tipo_identificacion: number;
+  num_identificacion: string;
   curp: string;
-  birth_date: string;
-  phone: string;
-  email: string;
-  address: string;
+  fecha_nacimiento: string;
+  telefono: string;
+  correo: string;
+  domicilio: string;
+  fecha_contratacion: string;
+  id_rol: number;
+  comentarios?: string;
+  expediente_completo?: boolean;
+  tipo_documento?: string;
+  last_document_scan?: string;
+  documents_status?: 'complete' | 'pending' | 'delayed';
 }
 
 const employeesMock: Employee[] = [
   {
-    employee_id: 1,
-    name: "Juan Pérez",
-    identification_type: "INE",
-    identification_number: "PERJ870519",
+    id_empleado: 1,
+    nombre: "Juan Pérez",
+    id_tipo_identificacion: 1,
+    num_identificacion: "PERJ870519",
     curp: "PERJ870519HDFLRN02",
-    birth_date: "1990-05-15",
-    phone: "555-0123",
-    email: "juan@ejemplo.com",
-    address: "Calle Principal 123"
+    fecha_nacimiento: "1990-05-15",
+    telefono: "555-0123",
+    correo: "juan@ejemplo.com",
+    domicilio: "Calle Principal 123",
+    fecha_contratacion: "2023-01-01",
+    id_rol: 2,
+    last_document_scan: "2024-01-15",
+    documents_status: "complete"
   },
   {
-    employee_id: 2,
-    name: "María García",
-    identification_type: "Pasaporte",
-    identification_number: "GAGM880820",
+    id_empleado: 2,
+    nombre: "María García",
+    id_tipo_identificacion: 2,
+    num_identificacion: "GAGM880820",
     curp: "GAGM880820MDFLRA02",
-    birth_date: "1988-08-20",
-    phone: "555-0124",
-    email: "maria@ejemplo.com",
-    address: "Avenida Central 456"
+    fecha_nacimiento: "1988-08-20",
+    telefono: "555-0124",
+    correo: "maria@ejemplo.com",
+    domicilio: "Avenida Central 456",
+    fecha_contratacion: "2023-02-01",
+    id_rol: 3,
+    last_document_scan: "2024-01-10",
+    documents_status: "pending"
   }
 ];
 
@@ -60,26 +76,63 @@ export default function EmployeesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [employees, setEmployees] = useState<Employee[]>(employeesMock);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDocumentsModalOpen, setIsDocumentsModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | undefined>(undefined);
 
+  const getDocumentStatus = (employee: Employee) => {
+    if (!employee.last_document_scan) return 'delayed';
+    
+    const lastScan = new Date(employee.last_document_scan);
+    const today = new Date();
+    const diffDays = Math.floor((today.getTime() - lastScan.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (employee.documents_status === 'complete') return 'complete';
+    if (diffDays > 5) return 'delayed';
+    return 'pending';
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'complete':
+        return 'bg-green-100 text-green-800';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'delayed':
+        return 'bg-red-100 text-red-800';
+      default:
+        return '';
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'complete':
+        return 'Expediente completo';
+      case 'pending':
+        return 'Pendiente';
+      case 'delayed':
+        return 'Captura atrasada';
+      default:
+        return '';
+    }
+  };
+
   const filteredEmployees = employees.filter(employee =>
-    employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.email.toLowerCase().includes(searchTerm.toLowerCase())
+    employee.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    employee.correo.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleSave = (employeeData: Omit<Employee, 'employee_id'>) => {
+  const handleSave = (employeeData: Employee) => {
     if (selectedEmployee) {
-      // Editar empleado existente
       setEmployees(employees.map(emp => 
-        emp.employee_id === selectedEmployee.employee_id 
-          ? { ...employeeData, employee_id: selectedEmployee.employee_id }
+        emp.id_empleado === selectedEmployee.id_empleado 
+          ? { ...employeeData, id_empleado: selectedEmployee.id_empleado }
           : emp
       ));
     } else {
-      // Crear nuevo empleado
       const newEmployee = {
         ...employeeData,
-        employee_id: Math.max(...employees.map(e => e.employee_id)) + 1
+        id_empleado: Math.max(...employees.map(e => e.id_empleado || 0)) + 1
       };
       setEmployees([...employees, newEmployee]);
     }
@@ -92,13 +145,18 @@ export default function EmployeesPage() {
 
   const handleDelete = (employeeId: number) => {
     if (confirm('¿Está seguro que desea eliminar este empleado?')) {
-      setEmployees(employees.filter(emp => emp.employee_id !== employeeId));
+      setEmployees(employees.filter(emp => emp.id_empleado !== employeeId));
     }
   };
 
   const handleAddNew = () => {
     setSelectedEmployee(undefined);
     setIsModalOpen(true);
+  };
+
+  const handleViewDocuments = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setIsDocumentsModalOpen(true);
   };
 
   return (
@@ -131,7 +189,7 @@ export default function EmployeesPage() {
                 placeholder="Buscar empleado por nombre o correo..."
                 className="pl-8"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
               />
             </div>
           </div>
@@ -147,41 +205,58 @@ export default function EmployeesPage() {
                   <TableHead>Teléfono</TableHead>
                   <TableHead>Correo</TableHead>
                   <TableHead>Domicilio</TableHead>
+                  <TableHead>Estado Documentos</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredEmployees.map((employee) => (
-                  <TableRow key={employee.employee_id}>
-                    <TableCell className="font-medium">{employee.employee_id}</TableCell>
-                    <TableCell>{employee.name}</TableCell>
-                    <TableCell>{new Date(employee.birth_date).toLocaleDateString()}</TableCell>
-                    <TableCell>{employee.curp}</TableCell>
-                    <TableCell>{employee.phone}</TableCell>
-                    <TableCell>{employee.email}</TableCell>
-                    <TableCell className="max-w-[200px] truncate" title={employee.address}>
-                      {employee.address}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="text-blue-600 hover:text-blue-700"
-                        onClick={() => handleEdit(employee)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="text-red-600 hover:text-red-700"
-                        onClick={() => handleDelete(employee.employee_id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {filteredEmployees.map((employee) => {
+                  const status = getDocumentStatus(employee);
+                  return (
+                    <TableRow key={employee.id_empleado}>
+                      <TableCell className="font-medium">{employee.id_empleado}</TableCell>
+                      <TableCell>{employee.nombre}</TableCell>
+                      <TableCell>{new Date(employee.fecha_nacimiento).toLocaleDateString()}</TableCell>
+                      <TableCell>{employee.curp}</TableCell>
+                      <TableCell>{employee.telefono}</TableCell>
+                      <TableCell>{employee.correo}</TableCell>
+                      <TableCell className="max-w-[200px] truncate" title={employee.domicilio}>
+                        {employee.domicilio}
+                      </TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusColor(status)}`}>
+                          {getStatusText(status)}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          className="text-purple-600 hover:text-purple-700"
+                          onClick={() => handleViewDocuments(employee)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="text-blue-600 hover:text-blue-700"
+                          onClick={() => handleEdit(employee)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="text-red-600 hover:text-red-700"
+                          onClick={() => handleDelete(employee.id_empleado!)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
@@ -197,6 +272,17 @@ export default function EmployeesPage() {
         onSave={handleSave}
         employee={selectedEmployee}
       />
+
+      {selectedEmployee && (
+        <ViewEmployeeDocumentsModal
+          isOpen={isDocumentsModalOpen}
+          onClose={() => {
+            setIsDocumentsModalOpen(false);
+            setSelectedEmployee(undefined);
+          }}
+          employee={selectedEmployee}
+        />
+      )}
     </div>
   );
 }

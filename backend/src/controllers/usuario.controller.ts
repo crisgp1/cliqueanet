@@ -1,18 +1,58 @@
 import { Request, Response } from 'express';
-import { UsuarioModel } from '../models/usuario.model';
-import { CreateUsuario, UpdateUsuario, LoginCredentials } from '../types';
+import Usuario from '../models/usuario.model';
+import { CreateUsuario, UpdateUsuario, LoginCredentials, RolUsuario } from '../types';
+import { hashPassword } from '../middlewares/auth.middleware';
 
 export class UsuarioController {
-  private model: UsuarioModel;
-
-  constructor() {
-    this.model = new UsuarioModel();
-  }
-
   login = async (req: Request, res: Response): Promise<void> => {
     try {
       const credentials: LoginCredentials = req.body;
-      const result = await this.model.login(credentials);
+      
+      // Validar que se proporcione al menos un método de identificación
+      if (!credentials.employeeId && !credentials.correo) {
+        res.status(400).json({
+          success: false,
+          message: 'Debe proporcionar un número de empleado o correo electrónico'
+        });
+        return;
+      }
+
+      // Si se proporciona número de empleado, validar el formato
+      if (credentials.employeeId && !/^\d{5,}$/.test(credentials.employeeId)) {
+        res.status(400).json({
+          success: false,
+          message: 'El número de empleado debe tener al menos 5 dígitos'
+        });
+        return;
+      }
+
+      // Validar contraseña
+      if (!/^(?=.*[A-Z])(?=.*\d).{8,}$/.test(credentials.password)) {
+        res.status(400).json({
+          success: false,
+          message: 'La contraseña debe tener al menos 8 caracteres, una mayúscula y un número'
+        });
+        return;
+      }
+
+      // Buscar usuario por número de empleado o correo
+      const whereClause = credentials.employeeId 
+        ? { num_identificacion: credentials.employeeId }
+        : { correo: credentials.correo };
+
+      const usuario = await Usuario.findOne({
+        where: whereClause
+      });
+
+      if (!usuario) {
+        res.status(401).json({
+          success: false,
+          message: 'Credenciales inválidas'
+        });
+        return;
+      }
+
+      const result = await Usuario.login(credentials);
 
       if (!result) {
         res.status(401).json({
@@ -39,10 +79,32 @@ export class UsuarioController {
   crearUsuario = async (req: Request, res: Response): Promise<void> => {
     try {
       const usuarioData: CreateUsuario = req.body;
-      const nuevoUsuario = await this.model.crear(usuarioData);
+
+      // Validar número de empleado
+      if (!/^\d{5,}$/.test(usuarioData.num_identificacion)) {
+        res.status(400).json({
+          success: false,
+          message: 'El número de empleado debe tener al menos 5 dígitos'
+        });
+        return;
+      }
+
+      // Validar contraseña
+      if (!/^(?=.*[A-Z])(?=.*\d).{8,}$/.test(usuarioData.password)) {
+        res.status(400).json({
+          success: false,
+          message: 'La contraseña debe tener al menos 8 caracteres, una mayúscula y un número'
+        });
+        return;
+      }
+
+      // Hash de la contraseña
+      usuarioData.password = await hashPassword(usuarioData.password);
+      
+      const nuevoUsuario = await Usuario.create(usuarioData);
       
       // Excluir la contraseña de la respuesta
-      const { password, ...usuarioSinPassword } = nuevoUsuario;
+      const { password, ...usuarioSinPassword } = nuevoUsuario.toJSON();
       
       res.status(201).json({
         success: true,
@@ -61,7 +123,9 @@ export class UsuarioController {
   obtenerUsuarioPorId = async (req: Request, res: Response): Promise<void> => {
     try {
       const id = parseInt(req.params.id);
-      const usuario = await this.model.obtenerPorId(id);
+      const usuario = await Usuario.findByPk(id, {
+        attributes: { exclude: ['password'] }
+      });
       
       if (!usuario) {
         res.status(404).json({
@@ -86,7 +150,9 @@ export class UsuarioController {
 
   obtenerTodosUsuarios = async (_req: Request, res: Response): Promise<void> => {
     try {
-      const usuarios = await this.model.obtenerTodos();
+      const usuarios = await Usuario.findAll({
+        attributes: { exclude: ['password'] }
+      });
       res.status(200).json({
         success: true,
         data: usuarios
@@ -104,11 +170,47 @@ export class UsuarioController {
     try {
       const id = parseInt(req.params.id);
       const usuarioData: UpdateUsuario = req.body;
-      const usuarioActualizado = await this.model.actualizar(id, usuarioData);
+
+      // Si se actualiza la contraseña, validar y hashear
+      if (usuarioData.password) {
+        if (!/^(?=.*[A-Z])(?=.*\d).{8,}$/.test(usuarioData.password)) {
+          res.status(400).json({
+            success: false,
+            message: 'La contraseña debe tener al menos 8 caracteres, una mayúscula y un número'
+          });
+          return;
+        }
+        usuarioData.password = await hashPassword(usuarioData.password);
+      }
+
+      // Si se actualiza el número de empleado, validar
+      if (usuarioData.num_identificacion && !/^\d{5,}$/.test(usuarioData.num_identificacion)) {
+        res.status(400).json({
+          success: false,
+          message: 'El número de empleado debe tener al menos 5 dígitos'
+        });
+        return;
+      }
+
+      const [numRows, [usuarioActualizado]] = await Usuario.update(usuarioData, {
+        where: { id_empleado: id },
+        returning: true
+      });
+
+      if (numRows === 0) {
+        res.status(404).json({
+          success: false,
+          message: `Usuario con ID ${id} no encontrado`
+        });
+        return;
+      }
+
+      // Excluir la contraseña de la respuesta
+      const { password, ...usuarioSinPassword } = usuarioActualizado.toJSON();
       
       res.status(200).json({
         success: true,
-        data: usuarioActualizado,
+        data: usuarioSinPassword,
         message: 'Usuario actualizado exitosamente'
       });
     } catch (error) {
@@ -123,7 +225,17 @@ export class UsuarioController {
   eliminarUsuario = async (req: Request, res: Response): Promise<void> => {
     try {
       const id = parseInt(req.params.id);
-      await this.model.eliminar(id);
+      const numRows = await Usuario.destroy({
+        where: { id_empleado: id }
+      });
+      
+      if (numRows === 0) {
+        res.status(404).json({
+          success: false,
+          message: `Usuario con ID ${id} no encontrado`
+        });
+        return;
+      }
       
       res.status(200).json({
         success: true,
@@ -140,8 +252,20 @@ export class UsuarioController {
 
   buscarUsuariosPorRol = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { rol } = req.params;
-      const usuarios = await this.model.buscarPorRol(rol);
+      // Validar que el rol sea válido
+      const rol = req.params.rol as RolUsuario;
+      if (!Object.values(RolUsuario).includes(rol)) {
+        res.status(400).json({
+          success: false,
+          message: 'Rol inválido'
+        });
+        return;
+      }
+
+      const usuarios = await Usuario.findAll({
+        where: { id_rol: rol },
+        attributes: { exclude: ['password'] }
+      });
       
       res.status(200).json({
         success: true,
@@ -159,7 +283,10 @@ export class UsuarioController {
   buscarUsuarioPorCorreo = async (req: Request, res: Response): Promise<void> => {
     try {
       const { correo } = req.params;
-      const usuario = await this.model.buscarPorCorreo(correo);
+      const usuario = await Usuario.findOne({
+        where: { correo },
+        attributes: { exclude: ['password'] }
+      });
       
       if (!usuario) {
         res.status(404).json({
