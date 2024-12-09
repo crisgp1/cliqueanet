@@ -5,6 +5,7 @@ import { ForgotPassword } from './pages/ForgotPassword';
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
 import { Intranet } from './pages/intranet';
+import { Toaster } from './components/ui/toaster';
 
 const App = (): JSX.Element => {
   return (
@@ -22,6 +23,7 @@ const App = (): JSX.Element => {
       </main>
 
       <Footer />
+      <Toaster />
     </div>
   );
 }

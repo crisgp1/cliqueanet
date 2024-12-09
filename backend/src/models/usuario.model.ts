@@ -16,6 +16,7 @@ interface UsuarioAttributes {
   fecha_contratacion: Date;
   id_rol: number;
   password: string;
+  num_empleado: string;
 }
 
 interface UsuarioCreationAttributes extends Omit<UsuarioAttributes, 'id_empleado'> {}
@@ -42,6 +43,7 @@ class Usuario extends Model<UsuarioAttributes, UsuarioCreationAttributes> {
   public fecha_contratacion!: Date;
   public id_rol!: number;
   public password!: string;
+  public num_empleado!: string;
 
   // Método para obtener el rol como enum
   public getRolEnum(): RolUsuario {
@@ -52,23 +54,29 @@ class Usuario extends Model<UsuarioAttributes, UsuarioCreationAttributes> {
   static async login(credentials: LoginCredentials): Promise<{ token: string; usuario: Omit<UsuarioAttributes, 'password'> } | null> {
     try {
       const whereClause = credentials.employeeId 
-        ? { id_empleado: credentials.employeeId }
+        ? { num_empleado: credentials.employeeId }
         : { correo: credentials.correo };
 
+      console.log('🔍 Buscando usuario con:', whereClause);
+      
       const usuario = await Usuario.findOne({
         where: whereClause
       });
 
       if (!usuario) {
+        console.log('❌ Usuario no encontrado');
         return null;
       }
 
+      console.log('✅ Usuario encontrado, verificando contraseña');
       const isPasswordValid = await comparePassword(credentials.password, usuario.password);
       
       if (!isPasswordValid) {
+        console.log('❌ Contraseña inválida');
         return null;
       }
 
+      console.log('✅ Contraseña válida, generando token');
       const token = generarToken({
         id_empleado: usuario.id_empleado,
         rol: usuario.getRolEnum()
@@ -77,11 +85,13 @@ class Usuario extends Model<UsuarioAttributes, UsuarioCreationAttributes> {
       // Excluir la contraseña de la respuesta
       const { password, ...usuarioSinPassword } = usuario.toJSON();
       
+      console.log('✅ Login exitoso');
       return {
         token,
         usuario: usuarioSinPassword
       };
     } catch (error) {
+      console.error('❌ Error en login:', error);
       throw new Error(`Error en el login: ${(error as Error).message}`);
     }
   }
@@ -147,6 +157,11 @@ Usuario.init(
       type: DataTypes.STRING(255),
       allowNull: false,
     },
+    num_empleado: {
+      type: DataTypes.STRING(20),
+      allowNull: true,
+      unique: true
+    }
   },
   {
     sequelize,

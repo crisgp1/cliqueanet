@@ -6,10 +6,12 @@ import { hashPassword } from '../middlewares/auth.middleware';
 export class UsuarioController {
   login = async (req: Request, res: Response): Promise<void> => {
     try {
+      console.log('🚀 Login request received:', req.body);
       const credentials: LoginCredentials = req.body;
       
       // Validar que se proporcione al menos un método de identificación
       if (!credentials.employeeId && !credentials.correo) {
+        console.log('❌ No se proporcionó método de identificación');
         res.status(400).json({
           success: false,
           message: 'Debe proporcionar un número de empleado o correo electrónico'
@@ -17,44 +19,21 @@ export class UsuarioController {
         return;
       }
 
-      // Si se proporciona número de empleado, validar el formato
-      if (credentials.employeeId && !/^\d{5,}$/.test(credentials.employeeId)) {
-        res.status(400).json({
-          success: false,
-          message: 'El número de empleado debe tener al menos 5 dígitos'
-        });
-        return;
-      }
-
       // Validar contraseña
-      if (!/^(?=.*[A-Z])(?=.*\d).{8,}$/.test(credentials.password)) {
+      if (!credentials.password) {
+        console.log('❌ No se proporcionó contraseña');
         res.status(400).json({
           success: false,
-          message: 'La contraseña debe tener al menos 8 caracteres, una mayúscula y un número'
+          message: 'Debe proporcionar una contraseña'
         });
         return;
       }
 
-      // Buscar usuario por número de empleado o correo
-      const whereClause = credentials.employeeId 
-        ? { num_identificacion: credentials.employeeId }
-        : { correo: credentials.correo };
-
-      const usuario = await Usuario.findOne({
-        where: whereClause
-      });
-
-      if (!usuario) {
-        res.status(401).json({
-          success: false,
-          message: 'Credenciales inválidas'
-        });
-        return;
-      }
-
+      console.log('✅ Validaciones pasadas, intentando login');
       const result = await Usuario.login(credentials);
 
       if (!result) {
+        console.log('❌ Login fallido: credenciales inválidas');
         res.status(401).json({
           success: false,
           message: 'Credenciales inválidas'
@@ -62,12 +41,14 @@ export class UsuarioController {
         return;
       }
 
+      console.log('✅ Login exitoso');
       res.status(200).json({
         success: true,
         data: result,
         message: 'Login exitoso'
       });
     } catch (error) {
+      console.error('❌ Error en el proceso de login:', error);
       res.status(500).json({
         success: false,
         error: (error as Error).message,
@@ -79,15 +60,6 @@ export class UsuarioController {
   crearUsuario = async (req: Request, res: Response): Promise<void> => {
     try {
       const usuarioData: CreateUsuario = req.body;
-
-      // Validar número de empleado
-      if (!/^\d{5,}$/.test(usuarioData.num_identificacion)) {
-        res.status(400).json({
-          success: false,
-          message: 'El número de empleado debe tener al menos 5 dígitos'
-        });
-        return;
-      }
 
       // Validar contraseña
       if (!/^(?=.*[A-Z])(?=.*\d).{8,}$/.test(usuarioData.password)) {
@@ -183,15 +155,6 @@ export class UsuarioController {
         usuarioData.password = await hashPassword(usuarioData.password);
       }
 
-      // Si se actualiza el número de empleado, validar
-      if (usuarioData.num_identificacion && !/^\d{5,}$/.test(usuarioData.num_identificacion)) {
-        res.status(400).json({
-          success: false,
-          message: 'El número de empleado debe tener al menos 5 dígitos'
-        });
-        return;
-      }
-
       const [numRows, [usuarioActualizado]] = await Usuario.update(usuarioData, {
         where: { id_empleado: id },
         returning: true
@@ -252,9 +215,8 @@ export class UsuarioController {
 
   buscarUsuariosPorRol = async (req: Request, res: Response): Promise<void> => {
     try {
-      // Validar que el rol sea válido
-      const rol = req.params.rol as RolUsuario;
-      if (!Object.values(RolUsuario).includes(rol)) {
+      const rolId = parseInt(req.params.rol);
+      if (isNaN(rolId) || !Object.values(RolUsuario).includes(rolId)) {
         res.status(400).json({
           success: false,
           message: 'Rol inválido'
@@ -263,7 +225,7 @@ export class UsuarioController {
       }
 
       const usuarios = await Usuario.findAll({
-        where: { id_rol: rol },
+        where: { id_rol: rolId },
         attributes: { exclude: ['password'] }
       });
       

@@ -14,18 +14,18 @@ export enum TipoTransaccion {
 }
 
 export enum RolUsuario {
-  Administrador = 'Administrador',
-  Ventas = 'Ventas',
-  RRHH = 'RRHH',
-  Gerente_general = 'Gerente_general',
-  Capturista = 'Capturista'
+  Administrador = 1,
+  Ventas = 2,
+  RRHH = 3,
+  Gerente_general = 4,
+  Capturista = 5
 }
 
 // Interfaces
 export interface Usuario {
   id_empleado: number;
   nombre: string;
-  tipo_identificacion: number;
+  id_tipo_identificacion: number;
   num_identificacion: string;
   fecha_nacimiento: Date;
   telefono: string;
@@ -33,7 +33,7 @@ export interface Usuario {
   curp: string;
   domicilio: string;
   fecha_contratacion: Date;
-  id_rol: RolUsuario;
+  id_rol: number;
   password: string;
 }
 
@@ -45,7 +45,7 @@ export interface LoginCredentials {
 
 export interface CreateUsuario {
   nombre: string;
-  tipo_identificacion: number;
+  id_tipo_identificacion: number;
   num_identificacion: string;
   fecha_nacimiento: Date;
   telefono: string;
@@ -53,13 +53,13 @@ export interface CreateUsuario {
   curp: string;
   domicilio: string;
   fecha_contratacion: Date;
-  id_rol: RolUsuario;
+  id_rol: number;
   password: string;
 }
 
 export interface UpdateUsuario {
   nombre?: string;
-  tipo_identificacion?: number;
+  id_tipo_identificacion?: number;
   num_identificacion?: string;
   fecha_nacimiento?: Date;
   telefono?: string;
@@ -67,14 +67,14 @@ export interface UpdateUsuario {
   curp?: string;
   domicilio?: string;
   fecha_contratacion?: Date;
-  id_rol?: RolUsuario;
+  id_rol?: number;
   password?: string;
 }
 
 export interface Cliente {
   id_cliente: number;
   nombre: string;
-  tipo_identificacion: string;
+  id_tipo_identificacion: number;
   num_identificacion: string;
   fecha_nacimiento: Date;
   telefono: string;
