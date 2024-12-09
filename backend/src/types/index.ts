@@ -56,6 +56,7 @@ export interface Usuario {
   fecha_contratacion: Date;
   id_rol: number;
   password: string;
+  [key: string]: any; // Agregar índice de firma para compatibilidad con Sequelize
 }
 
 export interface LoginCredentials {
@@ -66,33 +67,13 @@ export interface LoginCredentials {
   user_agent?: string;
 }
 
-export interface CreateUsuario {
-  nombre: string;
-  id_tipo_identificacion: number;
-  num_identificacion: string;
-  fecha_nacimiento: Date;
-  telefono: string;
-  correo: string;
-  curp: string;
-  domicilio: string;
-  fecha_contratacion: Date;
-  id_rol: number;
-  password: string;
-}
+export type CreateUsuario = Omit<Usuario, 'id_empleado'> & {
+  [key: string]: any; // Agregar índice de firma para compatibilidad con Sequelize
+};
 
-export interface UpdateUsuario {
-  nombre?: string;
-  id_tipo_identificacion?: number;
-  num_identificacion?: string;
-  fecha_nacimiento?: Date;
-  telefono?: string;
-  correo?: string;
-  curp?: string;
-  domicilio?: string;
-  fecha_contratacion?: Date;
-  id_rol?: number;
-  password?: string;
-}
+export type UpdateUsuario = Partial<Omit<Usuario, 'id_empleado'>> & {
+  [key: string]: any; // Agregar índice de firma para compatibilidad con Sequelize
+};
 
 export interface Cliente {
   id_cliente: number;

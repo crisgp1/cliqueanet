@@ -7,7 +7,10 @@ export class UsuarioController {
   login = async (req: Request, res: Response): Promise<void> => {
     try {
       console.log('🚀 Login request received:', req.body);
-      const credentials: LoginCredentials = req.body;
+      const credentials: LoginCredentials = {
+        ...req.body,
+        ip_address: req.realIP // Usar la IP real del middleware
+      };
       
       // Validar que se proporcione al menos un método de identificación
       if (!credentials.employeeId && !credentials.correo) {

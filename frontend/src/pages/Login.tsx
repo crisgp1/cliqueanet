@@ -8,7 +8,8 @@ import {
   ShieldCheck,
   Eye,
   EyeOff,
-  Clock
+  Clock,
+  Globe2
 } from 'lucide-react';
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { authService } from '../services/auth.service';
@@ -34,9 +35,20 @@ export const Login = () => {
       minute: '2-digit'
     });
 
-    return `Último acceso: ${formattedDate}
-Desde: ${lastLogin.browser} en ${lastLogin.device}
-Ubicación: ${lastLogin.city}, ${lastLogin.country}`;
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <Clock className="h-4 w-4" />
+          <span>Último acceso: {formattedDate}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Globe2 className="h-4 w-4" />
+          <span>IP: {lastLogin.ip_address}</span>
+        </div>
+        <div>Desde: {lastLogin.browser} en {lastLogin.device}</div>
+        <div>Ubicación: {lastLogin.city}, {lastLogin.country}</div>
+      </div>
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -77,14 +89,7 @@ Ubicación: ${lastLogin.city}, ${lastLogin.country}`;
           setTimeout(() => {
             toast({
               title: "Información de acceso anterior",
-              description: (
-                <div className="mt-2 text-sm space-y-1">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    {formatLastLogin(response.data.lastLogin!)}
-                  </div>
-                </div>
-              ),
+              description: formatLastLogin(response.data.lastLogin!),
               variant: "default",
               className: "bg-blue-500 text-white border-none",
               duration: 5000,

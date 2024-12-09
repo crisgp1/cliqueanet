@@ -1,18 +1,27 @@
 import axios from 'axios';
 import { LoginResponse, LoginCredentials, LoginHistory } from '../types';
+import { ipService } from './ip.service';
 
 const API_URL = 'http://localhost:3001/api';
 
 class AuthService {
   async login(credentials: LoginCredentials): Promise<LoginResponse> {
     try {
+      console.log('🚀 Obteniendo IP del cliente...');
+      const ip_address = await ipService.getClientIp();
+      console.log('✅ IP obtenida:', ip_address);
+
       // Add IP address and user agent to credentials
       const enrichedCredentials = {
         ...credentials,
         user_agent: window.navigator.userAgent,
-        // We'll get the IP from the server side since it's more reliable
-        ip_address: '0.0.0.0' // This will be overwritten by the server
+        ip_address
       };
+
+      console.log('🚀 Enviando credenciales:', {
+        ...enrichedCredentials,
+        password: '[REDACTED]'
+      });
 
       const response = await axios.post<LoginResponse>(`${API_URL}/usuarios/login`, enrichedCredentials);
       
@@ -51,6 +60,8 @@ class AuthService {
     localStorage.removeItem('lastLogin');
     // Remove Authorization header
     delete axios.defaults.headers.common['Authorization'];
+    // Clear IP cache
+    ipService.clearCache();
   }
 
   getCurrentUser() {
