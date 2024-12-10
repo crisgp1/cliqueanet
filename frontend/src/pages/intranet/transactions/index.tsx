@@ -1,4 +1,4 @@
-import { useState, ChangeEvent } from 'react';
+import { useState, ChangeEvent, useEffect } from 'react';
 import {
   Table,
   TableBody,
@@ -6,112 +6,156 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "../../../components/ui/table";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+} from "../../../components/ui/card";
+import { Button } from "../../../components/ui/button";
+import { Input } from "../../../components/ui/input";
 import { Search, Plus, Trash2, FileText, Eye } from 'lucide-react';
-import { TransactionsModal } from '@/components/modals/TransactionsModal';
-import { DocumentsModal } from '@/components/modals/DocumentsModal';
-import { ViewDocumentsModal } from '@/components/modals/ViewDocumentsModal';
+import { TransactionsModal } from '../../../components/modals/TransactionsModal';
+import { DocumentsModal } from '../../../components/modals/DocumentsModal';
+import { ViewDocumentsModal } from '../../../components/modals/ViewDocumentsModal';
+import transaccionService, { Transaccion } from '../../../services/transaccion.service';
+import { toast } from '../../../components/ui/use-toast';
 
-interface Transaction {
-  id_transaccion: number;
-  fecha: string;
-  id_usuario: number;
-  nombre: string,
-  id_cliente: number;
-  id_vehiculo: number;
-  id_credito?: number | null;
-  id_tipo_transaccion: number;
-  cliente_nombre: string;
-  vehiculo_modelo: string;
-  tipo_transaccion_nombre: string;
-  documentos_pendientes: boolean;
+interface TransactionDisplay extends Transaccion {
+  clienteNombre: string;
+  vehiculoModelo: string;
+  tipoTransaccionNombre: string;
+  documentosPendientes: boolean;
 }
-
-const transactionsMock: Transaction[] = [
-  {
-    id_transaccion: 1,
-    fecha: '2024-04-15',
-    id_usuario: 1,
-    id_cliente: 1,
-    nombre: 'Juan Pérez',
-    id_vehiculo: 5,
-    id_credito: null,
-    id_tipo_transaccion: 1,
-    cliente_nombre: 'Ana López',
-    vehiculo_modelo: 'Toyota Corolla 2022',
-    tipo_transaccion_nombre: 'Venta',
-    documentos_pendientes: true
-  },
-  {
-    id_transaccion: 2,
-    fecha: '2024-04-16',
-    id_usuario: 2,
-    nombre: 'Anatolia',     // Nombre del empleado/vendedor
-    id_cliente: 2,
-    id_vehiculo: 7,
-    id_credito: 3,
-    id_tipo_transaccion: 2,
-    cliente_nombre: 'Carlos Ruiz',
-    vehiculo_modelo: 'Honda Civic 2023',
-    tipo_transaccion_nombre: 'Crédito',
-    documentos_pendientes: false
-  }
-];
 
 export default function TransactionsPage() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [transactions, setTransactions] = useState<Transaction[]>(transactionsMock);
+  const [transactions, setTransactions] = useState<TransactionDisplay[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDocumentsModalOpen, setIsDocumentsModalOpen] = useState(false);
   const [isViewDocumentsModalOpen, setIsViewDocumentsModalOpen] = useState(false);
-  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | undefined>(undefined);
+  const [selectedTransaction, setSelectedTransaction] = useState<TransactionDisplay | undefined>(undefined);
   const [selectedTransactionId, setSelectedTransactionId] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    loadTransactions();
+  }, []);
+
+  const loadTransactions = async () => {
+    try {
+      const data = await transaccionService.getAll();
+      const formattedTransactions: TransactionDisplay[] = data.map(trans => ({
+        ...trans,
+        clienteNombre: trans.cliente?.nombre || 'N/A',
+        vehiculoModelo: `${trans.vehiculo?.marca} ${trans.vehiculo?.modelo} ${trans.vehiculo?.anio}` || 'N/A',
+        tipoTransaccionNombre: trans.tipoTransaccion?.nombre || 'N/A',
+        documentosPendientes: true // Esto debería venir del backend
+      }));
+      setTransactions(formattedTransactions);
+    } catch (error) {
+      console.error('Error al cargar transacciones:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar las transacciones",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const filteredTransactions = transactions.filter(transaction =>
-    transaction.cliente_nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    transaction.vehiculo_modelo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    transaction.tipo_transaccion_nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    transaction.fecha.toLowerCase().includes(searchTerm.toLowerCase())
+    transaction.clienteNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    transaction.vehiculoModelo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    transaction.tipoTransaccionNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    new Date(transaction.fecha).toLocaleDateString().toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleSave = (transactionData: Omit<Transaction, 'id_transaccion' | 'documentos_pendientes'>) => {
-    if (selectedTransaction) {
-      // Edit existing transaction
-      setTransactions(transactions.map(trans =>
-        trans.id_transaccion === selectedTransaction.id_transaccion
-          ? { ...transactionData, id_transaccion: selectedTransaction.id_transaccion, documentos_pendientes: trans.documentos_pendientes }
-          : trans
-      ));
-    } else {
-      // Create new transaction
-      const newTransaction = {
-        ...transactionData,
-        id_transaccion: Math.max(...transactions.map(t => t.id_transaccion)) + 1,
-        documentos_pendientes: true
-      };
-      setTransactions([...transactions, newTransaction]);
+  const handleSave = async (transactionData: Transaccion) => {
+    try {
+      if (selectedTransaction) {
+        // Edit existing transaction
+        const updated = await transaccionService.update(selectedTransaction.id, {
+          idUsuario: transactionData.idUsuario,
+          idCliente: transactionData.idCliente,
+          idVehiculo: transactionData.idVehiculo,
+          idCredito: transactionData.idCredito,
+          idTipoTransaccion: transactionData.idTipoTransaccion
+        });
+        setTransactions(transactions.map(trans =>
+          trans.id === selectedTransaction.id
+            ? {
+              ...trans,
+              ...updated,
+              clienteNombre: updated.cliente?.nombre || 'N/A',
+              vehiculoModelo: `${updated.vehiculo?.marca} ${updated.vehiculo?.modelo} ${updated.vehiculo?.anio}` || 'N/A',
+              tipoTransaccionNombre: updated.tipoTransaccion?.nombre || 'N/A'
+            }
+            : trans
+        ));
+        toast({
+          title: "Éxito",
+          description: "Transacción actualizada correctamente"
+        });
+      } else {
+        // Create new transaction
+        const created = await transaccionService.create({
+          idUsuario: transactionData.idUsuario,
+          idCliente: transactionData.idCliente,
+          idVehiculo: transactionData.idVehiculo,
+          idCredito: transactionData.idCredito,
+          idTipoTransaccion: transactionData.idTipoTransaccion
+        });
+        const newTransaction: TransactionDisplay = {
+          ...created,
+          clienteNombre: created.cliente?.nombre || 'N/A',
+          vehiculoModelo: `${created.vehiculo?.marca} ${created.vehiculo?.modelo} ${created.vehiculo?.anio}` || 'N/A',
+          tipoTransaccionNombre: created.tipoTransaccion?.nombre || 'N/A',
+          documentosPendientes: true
+        };
+        setTransactions([...transactions, newTransaction]);
+        toast({
+          title: "Éxito",
+          description: "Transacción creada correctamente"
+        });
+      }
+    } catch (error) {
+      console.error('Error al guardar transacción:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo guardar la transacción",
+        variant: "destructive"
+      });
     }
     setIsModalOpen(false);
     setSelectedTransaction(undefined);
   };
 
-  const handleEdit = (transaction: Transaction) => {
+  const handleEdit = (transaction: TransactionDisplay) => {
     setSelectedTransaction(transaction);
     setIsModalOpen(true);
   };
 
-  const handleDelete = (transactionId: number) => {
+  const handleDelete = async (transactionId: number) => {
     if (confirm('¿Está seguro que desea eliminar esta transacción?')) {
-      setTransactions(transactions.filter(trans => trans.id_transaccion !== transactionId));
+      try {
+        await transaccionService.delete(transactionId);
+        setTransactions(transactions.filter(trans => trans.id !== transactionId));
+        toast({
+          title: "Éxito",
+          description: "Transacción eliminada correctamente"
+        });
+      } catch (error) {
+        console.error('Error al eliminar transacción:', error);
+        toast({
+          title: "Error",
+          description: "No se pudo eliminar la transacción",
+          variant: "destructive"
+        });
+      }
     }
   };
 
@@ -132,11 +176,15 @@ export default function TransactionsPage() {
 
   const handleUpdateDocumentStatus = (transactionId: number) => {
     setTransactions(transactions.map(trans =>
-      trans.id_transaccion === transactionId
-        ? { ...trans, documentos_pendientes: false }
+      trans.id === transactionId
+        ? { ...trans, documentosPendientes: false }
         : trans
     ));
   };
+
+  if (isLoading) {
+    return <div className="flex justify-center items-center h-full">Cargando...</div>;
+  }
 
   return (
     <div className="space-y-6 p-6">
@@ -179,7 +227,6 @@ export default function TransactionsPage() {
                 <TableRow>
                   <TableHead>Fecha de transacción</TableHead>
                   <TableHead>Nombre del vendedor</TableHead>
-
                   <TableHead>Cliente</TableHead>
                   <TableHead>Vehículo</TableHead>
                   <TableHead>Tipo de Transacción</TableHead>
@@ -190,31 +237,39 @@ export default function TransactionsPage() {
               </TableHeader>
               <TableBody>
                 {filteredTransactions.map((transaction) => (
-                  <TableRow key={transaction.id_transaccion}>
+                  <TableRow key={transaction.id}>
                     <TableCell>{new Date(transaction.fecha).toLocaleDateString()}</TableCell>
-                    <TableCell>{transaction.nombre}</TableCell>
-
-                    <TableCell>{transaction.cliente_nombre}</TableCell>
-                    <TableCell>{transaction.vehiculo_modelo}</TableCell>
-                    <TableCell>{transaction.tipo_transaccion_nombre}</TableCell>
-                    <TableCell>{transaction.id_credito || 'N/A'}</TableCell>
+                    <TableCell>{transaction.usuario?.nombre || 'N/A'}</TableCell>
+                    <TableCell>{transaction.clienteNombre}</TableCell>
+                    <TableCell>{transaction.vehiculoModelo}</TableCell>
+                    <TableCell>{transaction.tipoTransaccionNombre}</TableCell>
+                    <TableCell>{transaction.idCredito || 'N/A'}</TableCell>
                     <TableCell>
                       <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${transaction.documentos_pendientes
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                          transaction.documentosPendientes
                             ? 'bg-yellow-100 text-yellow-800'
                             : 'bg-green-100 text-green-800'
-                          }`}
+                        }`}
                       >
-                        {transaction.documentos_pendientes ? 'Pendientes' : 'Completos'}
+                        {transaction.documentosPendientes ? 'Pendientes' : 'Completos'}
                       </span>
                     </TableCell>
                     <TableCell className="text-right">
-                      {transaction.documentos_pendientes ? (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-blue-600 hover:text-blue-700"
+                        onClick={() => handleEdit(transaction)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      {transaction.documentosPendientes ? (
                         <Button
                           variant="ghost"
                           size="icon"
                           className="text-blue-600 hover:text-blue-700"
-                          onClick={() => handleOpenDocuments(transaction.id_transaccion)}
+                          onClick={() => handleOpenDocuments(transaction.id)}
                         >
                           <FileText className="h-4 w-4" />
                         </Button>
@@ -223,7 +278,7 @@ export default function TransactionsPage() {
                           variant="ghost"
                           size="icon"
                           className="text-blue-600 hover:text-blue-700"
-                          onClick={() => handleViewDocuments(transaction.id_transaccion)}
+                          onClick={() => handleViewDocuments(transaction.id)}
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
@@ -232,7 +287,7 @@ export default function TransactionsPage() {
                         variant="ghost"
                         size="icon"
                         className="text-red-600 hover:text-red-700"
-                        onClick={() => handleDelete(transaction.id_transaccion)}
+                        onClick={() => handleDelete(transaction.id)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -252,7 +307,7 @@ export default function TransactionsPage() {
           setSelectedTransaction(undefined);
         }}
         onSave={handleSave}
-        transaction={selectedTransaction}
+        transaccion={selectedTransaction}
       />
 
       {selectedTransactionId && (

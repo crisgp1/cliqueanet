@@ -1,63 +1,43 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, ChangeEvent } from 'react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+} from "../../components/ui/dialog";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
 import { FaCalendar, FaUser, FaCar, FaMoneyBillWave, FaFileContract, FaUserTie } from 'react-icons/fa';
+import { toast } from "../../components/ui/use-toast";
+import clienteService, { Cliente } from '../../services/cliente.service';
+import { vehiculoService, Vehicle } from '../../services/vehiculo.service';
+import { authService } from '../../services/auth.service';
+import transaccionService, { CreateTransaccionDto, UpdateTransaccionDto, Transaccion } from '../../services/transaccion.service';
 
-// Mock data temporal
-const mockClientes = [
-  { id_cliente: 1, nombre: 'Ana López', curp: 'LOPA900101MDFXXX01' },
-  { id_cliente: 2, nombre: 'Carlos Ruiz', curp: 'RUIC880305HDFXXX02' }
-];
+interface TipoTransaccion {
+  id: number;
+  nombre: string;
+}
 
-const mockVehiculos = [
-  { 
-    id_vehiculo: 5, 
-    marca: 'Toyota', 
-    modelo: 'Corolla', 
-    anio: 2022,
-    precio: 350000.00,
-    num_serie: 'TOY123456789',
-    color: 'Blanco'
-  },
-  { 
-    id_vehiculo: 7, 
-    marca: 'Honda', 
-    modelo: 'Civic', 
-    anio: 2023,
-    precio: 420000.00,
-    num_serie: 'HON987654321',
-    color: 'Negro'
-  }
-];
-
-const mockTiposTransaccion = [
-  { id_tipo_transaccion: 1, nombre: 'Venta' },
-  { id_tipo_transaccion: 2, nombre: 'Apartado' },
-  { id_tipo_transaccion: 3, nombre: 'Credito' },
-  { id_tipo_transaccion: 4, nombre: 'Traspaso' },
-  { id_tipo_transaccion: 5, nombre: 'Cambio' }
+const tiposTransaccion: TipoTransaccion[] = [
+  { id: 1, nombre: 'Venta' },
+  { id: 2, nombre: 'Apartado' },
+  { id: 3, nombre: 'Crédito' },
+  { id: 4, nombre: 'Traspaso' },
+  { id: 5, nombre: 'Cambio' }
 ];
 
 interface TransaccionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (transaccion: any) => void;
-  transaccion?: {
-    id_transaccion?: number;
-    fecha: string;
-    id_usuario: number;
-    id_cliente: number;
-    id_vehiculo: number;
-    id_credito?: number;
-    id_tipo_transaccion: number;
-  };
+  onSave: (transaccion: Transaccion) => void;
+  transaccion?: Transaccion;
+}
+
+interface FormState {
+  fechaTransaccion: string;
+  createData: CreateTransaccionDto;
 }
 
 export const TransactionsModal: React.FC<TransaccionModalProps> = ({ 
@@ -67,38 +47,105 @@ export const TransactionsModal: React.FC<TransaccionModalProps> = ({
   transaccion 
 }) => {
   const [step, setStep] = useState<'form' | 'preview' | 'confirm'>('form');
-  const [formData, setFormData] = useState({
-    fecha: transaccion?.fecha || new Date().toISOString().split('T')[0],
-    id_usuario: 1001, // ID del usuario actual (mock)
-    id_cliente: transaccion?.id_cliente || '',
-    id_vehiculo: transaccion?.id_vehiculo || '',
-    id_credito: transaccion?.id_credito || '',
-    id_tipo_transaccion: transaccion?.id_tipo_transaccion || ''
+  const [formState, setFormState] = useState<FormState>({
+    fechaTransaccion: transaccion?.fecha?.toString().split('T')[0] || new Date().toISOString().split('T')[0],
+    createData: {
+      idUsuario: transaccion?.idUsuario || authService.getCurrentUser()?.id || 0,
+      idCliente: transaccion?.idCliente || 0,
+      idVehiculo: transaccion?.idVehiculo || 0,
+      idCredito: transaccion?.idCredito,
+      idTipoTransaccion: transaccion?.idTipoTransaccion || 0
+    }
   });
   const [confirmationInput, setConfirmationInput] = useState('');
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [vehiculos, setVehiculos] = useState<Vehicle[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [clientesData, vehiculosData] = await Promise.all([
+          clienteService.getAll(),
+          vehiculoService.getAll()
+        ]);
+        setClientes(clientesData);
+        setVehiculos(vehiculosData);
+      } catch (error) {
+        console.error('Error al cargar datos:', error);
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los datos necesarios",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (isOpen) {
+      loadData();
+    }
+  }, [isOpen]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setStep('preview');
   };
 
-  const handleConfirm = () => {
-    if (confirmationInput === '1001') {
-      onSave(formData);
-      onClose();
+  const handleConfirm = async () => {
+    const currentUser = authService.getCurrentUser();
+    if (confirmationInput === currentUser?.id.toString()) {
+      try {
+        let savedTransaccion: Transaccion;
+        if (transaccion?.id) {
+          savedTransaccion = await transaccionService.update(transaccion.id, formState.createData);
+        } else {
+          savedTransaccion = await transaccionService.create(formState.createData);
+        }
+        onSave(savedTransaccion);
+        toast({
+          title: "Éxito",
+          description: `Transacción ${transaccion?.id ? 'actualizada' : 'creada'} correctamente`,
+        });
+        onClose();
+      } catch (error) {
+        console.error('Error al guardar transacción:', error);
+        toast({
+          title: "Error",
+          description: "No se pudo guardar la transacción",
+          variant: "destructive"
+        });
+      }
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    if (name === 'fechaTransaccion') {
+      setFormState(prev => ({ ...prev, fechaTransaccion: value }));
+    } else {
+      setFormState(prev => ({
+        ...prev,
+        createData: { ...prev.createData, [name]: value }
+      }));
+    }
   };
 
-  const selectedCliente = mockClientes.find(c => c.id_cliente === Number(formData.id_cliente));
-  const selectedVehiculo = mockVehiculos.find(v => v.id_vehiculo === Number(formData.id_vehiculo));
-  const selectedTipoTransaccion = mockTiposTransaccion.find(t => t.id_tipo_transaccion === Number(formData.id_tipo_transaccion));
+  const selectedCliente = clientes.find(c => c.id === Number(formState.createData.idCliente));
+  const selectedVehiculo = vehiculos.find(v => v.id_vehiculo === Number(formState.createData.idVehiculo));
+  const selectedTipoTransaccion = tiposTransaccion.find(t => t.id === Number(formState.createData.idTipoTransaccion));
 
   if (!isOpen) return null;
+  if (loading) return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[600px]">
+        <div className="flex justify-center items-center h-40">
+          Cargando...
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -119,7 +166,7 @@ export const TransactionsModal: React.FC<TransaccionModalProps> = ({
                     Usuario Actual
                   </label>
                   <Input
-                    value="1001"
+                    value={authService.getCurrentUser()?.nombre || ''}
                     disabled
                     className="bg-gray-100"
                   />
@@ -127,15 +174,15 @@ export const TransactionsModal: React.FC<TransaccionModalProps> = ({
 
                 {/* Fecha */}
                 <div className="space-y-2">
-                  <label htmlFor="fecha" className="text-sm font-medium flex items-center gap-2">
+                  <label htmlFor="fechaTransaccion" className="text-sm font-medium flex items-center gap-2">
                     <FaCalendar className="text-gray-500" />
                     Fecha
                   </label>
                   <Input
-                    id="fecha"
-                    name="fecha"
+                    id="fechaTransaccion"
+                    name="fechaTransaccion"
                     type="date"
-                    value={formData.fecha}
+                    value={formState.fechaTransaccion}
                     onChange={handleChange}
                     required
                   />
@@ -143,21 +190,21 @@ export const TransactionsModal: React.FC<TransaccionModalProps> = ({
 
                 {/* Cliente */}
                 <div className="space-y-2">
-                  <label htmlFor="id_cliente" className="text-sm font-medium flex items-center gap-2">
+                  <label htmlFor="idCliente" className="text-sm font-medium flex items-center gap-2">
                     <FaUser className="text-gray-500" />
                     Cliente
                   </label>
                   <select
-                    id="id_cliente"
-                    name="id_cliente"
-                    value={formData.id_cliente}
+                    id="idCliente"
+                    name="idCliente"
+                    value={formState.createData.idCliente}
                     onChange={handleChange}
                     required
                     className="w-full border rounded-md p-2"
                   >
                     <option value="">Seleccione un cliente</option>
-                    {mockClientes.map(cliente => (
-                      <option key={cliente.id_cliente} value={cliente.id_cliente}>
+                    {clientes.map(cliente => (
+                      <option key={cliente.id} value={cliente.id}>
                         {cliente.nombre} - {cliente.curp}
                       </option>
                     ))}
@@ -166,20 +213,20 @@ export const TransactionsModal: React.FC<TransaccionModalProps> = ({
 
                 {/* Vehículo */}
                 <div className="space-y-2">
-                  <label htmlFor="id_vehiculo" className="text-sm font-medium flex items-center gap-2">
+                  <label htmlFor="idVehiculo" className="text-sm font-medium flex items-center gap-2">
                     <FaCar className="text-gray-500" />
                     Vehículo
                   </label>
                   <select
-                    id="id_vehiculo"
-                    name="id_vehiculo"
-                    value={formData.id_vehiculo}
+                    id="idVehiculo"
+                    name="idVehiculo"
+                    value={formState.createData.idVehiculo}
                     onChange={handleChange}
                     required
                     className="w-full border rounded-md p-2"
                   >
                     <option value="">Seleccione un vehículo</option>
-                    {mockVehiculos.map(vehiculo => (
+                    {vehiculos.map(vehiculo => (
                       <option key={vehiculo.id_vehiculo} value={vehiculo.id_vehiculo}>
                         {vehiculo.marca} {vehiculo.modelo} {vehiculo.anio} - {vehiculo.color}
                       </option>
@@ -189,21 +236,21 @@ export const TransactionsModal: React.FC<TransaccionModalProps> = ({
 
                 {/* Tipo de Transacción */}
                 <div className="space-y-2">
-                  <label htmlFor="id_tipo_transaccion" className="text-sm font-medium flex items-center gap-2">
+                  <label htmlFor="idTipoTransaccion" className="text-sm font-medium flex items-center gap-2">
                     <FaFileContract className="text-gray-500" />
                     Tipo de Transacción
                   </label>
                   <select
-                    id="id_tipo_transaccion"
-                    name="id_tipo_transaccion"
-                    value={formData.id_tipo_transaccion}
+                    id="idTipoTransaccion"
+                    name="idTipoTransaccion"
+                    value={formState.createData.idTipoTransaccion}
                     onChange={handleChange}
                     required
                     className="w-full border rounded-md p-2"
                   >
                     <option value="">Seleccione tipo</option>
-                    {mockTiposTransaccion.map(tipo => (
-                      <option key={tipo.id_tipo_transaccion} value={tipo.id_tipo_transaccion}>
+                    {tiposTransaccion.map(tipo => (
+                      <option key={tipo.id} value={tipo.id}>
                         {tipo.nombre}
                       </option>
                     ))}
@@ -212,15 +259,15 @@ export const TransactionsModal: React.FC<TransaccionModalProps> = ({
 
                 {/* Crédito (opcional) */}
                 <div className="space-y-2">
-                  <label htmlFor="id_credito" className="text-sm font-medium flex items-center gap-2">
+                  <label htmlFor="idCredito" className="text-sm font-medium flex items-center gap-2">
                     <FaMoneyBillWave className="text-gray-500" />
                     Crédito (Opcional)
                   </label>
                   <Input
-                    id="id_credito"
-                    name="id_credito"
+                    id="idCredito"
+                    name="idCredito"
                     type="number"
-                    value={formData.id_credito}
+                    value={formState.createData.idCredito || ''}
                     onChange={handleChange}
                     placeholder="ID del crédito si aplica"
                   />
@@ -245,12 +292,12 @@ export const TransactionsModal: React.FC<TransaccionModalProps> = ({
             </DialogHeader>
             <div className="py-4 space-y-4">
               <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-                <p><strong>Fecha:</strong> {formData.fecha}</p>
-                <p><strong>Usuario:</strong> ID: {formData.id_usuario}</p>
+                <p><strong>Fecha:</strong> {formState.fechaTransaccion}</p>
+                <p><strong>Usuario:</strong> {authService.getCurrentUser()?.nombre}</p>
                 <p><strong>Cliente:</strong> {selectedCliente?.nombre}</p>
                 <p><strong>Vehículo:</strong> {selectedVehiculo?.marca} {selectedVehiculo?.modelo} {selectedVehiculo?.anio}</p>
                 <p><strong>Tipo de Transacción:</strong> {selectedTipoTransaccion?.nombre}</p>
-                {formData.id_credito && <p><strong>ID Crédito:</strong> {formData.id_credito}</p>}
+                {formState.createData.idCredito && <p><strong>ID Crédito:</strong> {formState.createData.idCredito}</p>}
               </div>
               <Button 
                 onClick={() => setStep('confirm')}
@@ -273,13 +320,13 @@ export const TransactionsModal: React.FC<TransaccionModalProps> = ({
               </p>
               <Input
                 value={confirmationInput}
-                onChange={(e) => setConfirmationInput(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setConfirmationInput(e.target.value)}
                 placeholder="Número de empleado"
               />
               <Button 
                 onClick={handleConfirm}
                 className="w-full"
-                disabled={confirmationInput !== '1001'}
+                disabled={confirmationInput !== authService.getCurrentUser()?.id.toString()}
               >
                 Confirmar y Guardar
               </Button>
@@ -290,4 +337,3 @@ export const TransactionsModal: React.FC<TransaccionModalProps> = ({
     </Dialog>
   );
 };
-

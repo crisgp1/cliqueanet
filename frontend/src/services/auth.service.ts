@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { LoginResponse, LoginCredentials, LoginHistory } from '../types';
 import { ipService } from './ip.service';
-
+ 
 const API_URL = 'http://localhost:3001/api';
 
 class AuthService {
