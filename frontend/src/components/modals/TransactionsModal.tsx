@@ -11,22 +11,11 @@ import { Input } from "../../components/ui/input";
 import { FaCalendar, FaUser, FaCar, FaMoneyBillWave, FaFileContract, FaUserTie } from 'react-icons/fa';
 import { toast } from "../../components/ui/use-toast";
 import clienteService, { Cliente } from '../../services/cliente.service';
-import { vehiculoService, Vehicle } from '../../services/vehiculo.service';
+import vehiculoService, { Vehiculo } from '../../services/vehiculo.service';
 import { authService } from '../../services/auth.service';
 import transaccionService, { CreateTransaccionDto, UpdateTransaccionDto, Transaccion } from '../../services/transaccion.service';
-
-interface TipoTransaccion {
-  id: number;
-  nombre: string;
-}
-
-const tiposTransaccion: TipoTransaccion[] = [
-  { id: 1, nombre: 'Venta' },
-  { id: 2, nombre: 'Apartado' },
-  { id: 3, nombre: 'Crédito' },
-  { id: 4, nombre: 'Traspaso' },
-  { id: 5, nombre: 'Cambio' }
-];
+import tipoTransaccionService from '../../services/tipo-transaccion.service';
+import { TipoTransaccion } from '../../types';
 
 interface TransaccionModalProps {
   isOpen: boolean;
@@ -59,18 +48,21 @@ export const TransactionsModal: React.FC<TransaccionModalProps> = ({
   });
   const [confirmationInput, setConfirmationInput] = useState('');
   const [clientes, setClientes] = useState<Cliente[]>([]);
-  const [vehiculos, setVehiculos] = useState<Vehicle[]>([]);
+  const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
+  const [tiposTransaccion, setTiposTransaccion] = useState<TipoTransaccion[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [clientesData, vehiculosData] = await Promise.all([
+        const [clientesData, vehiculosData, tiposTransaccionData] = await Promise.all([
           clienteService.getAll(),
-          vehiculoService.getAll()
+          vehiculoService.getAll(),
+          tipoTransaccionService.getAll()
         ]);
         setClientes(clientesData);
         setVehiculos(vehiculosData);
+        setTiposTransaccion(tiposTransaccionData);
       } catch (error) {
         console.error('Error al cargar datos:', error);
         toast({

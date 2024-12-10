@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Table,
   TableBody,
@@ -19,74 +19,68 @@ import { Input } from "../../../components/ui/input";
 import { Search, Plus, Pencil, Trash2, Eye } from 'lucide-react';
 import { EmployeeModal } from '../../../components/modals/EmployeeModal';
 import { ViewEmployeeDocumentsModal } from '../../../components/modals/ViewEmployeeDocumentsModal';
+import { empleadoService, IEmpleado } from '../../../services/empleado.service';
+import { documentoService, DocumentosResponse } from '../../../services/documento.service';
+import { toast } from '../../../components/ui/use-toast';
 
-interface Employee {
-  id_empleado?: number;
-  nombre: string;
-  id_tipo_identificacion: number;
-  num_identificacion: string;
-  curp: string;
-  fecha_nacimiento: string;
-  telefono: string;
-  correo: string;
-  domicilio: string;
-  fecha_contratacion: string;
-  id_rol: number;
-  comentarios?: string;
-  expediente_completo?: boolean;
-  tipo_documento?: string;
-  last_document_scan?: string;
-  documents_status?: 'complete' | 'pending' | 'delayed';
+interface EmployeeWithDocuments extends IEmpleado {
+  documentosInfo?: DocumentosResponse;
 }
-
-const employeesMock: Employee[] = [
-  {
-    id_empleado: 1,
-    nombre: "Juan Pérez",
-    id_tipo_identificacion: 1,
-    num_identificacion: "PERJ870519",
-    curp: "PERJ870519HDFLRN02",
-    fecha_nacimiento: "1990-05-15",
-    telefono: "555-0123",
-    correo: "juan@ejemplo.com",
-    domicilio: "Calle Principal 123",
-    fecha_contratacion: "2023-01-01",
-    id_rol: 2,
-    last_document_scan: "2024-01-15",
-    documents_status: "complete"
-  },
-  {
-    id_empleado: 2,
-    nombre: "María García",
-    id_tipo_identificacion: 2,
-    num_identificacion: "GAGM880820",
-    curp: "GAGM880820MDFLRA02",
-    fecha_nacimiento: "1988-08-20",
-    telefono: "555-0124",
-    correo: "maria@ejemplo.com",
-    domicilio: "Avenida Central 456",
-    fecha_contratacion: "2023-02-01",
-    id_rol: 3,
-    last_document_scan: "2024-01-10",
-    documents_status: "pending"
-  }
-];
 
 export default function EmployeesPage() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [employees, setEmployees] = useState<Employee[]>(employeesMock);
+  const [employees, setEmployees] = useState<EmployeeWithDocuments[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDocumentsModalOpen, setIsDocumentsModalOpen] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | undefined>(undefined);
+  const [selectedEmployee, setSelectedEmployee] = useState<EmployeeWithDocuments | undefined>(undefined);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const getDocumentStatus = (employee: Employee) => {
-    if (!employee.last_document_scan) return 'delayed';
+  useEffect(() => {
+    loadEmployees();
+  }, []);
+
+  const loadEmployees = async () => {
+    try {
+      setIsLoading(true);
+      const empleadosData = await empleadoService.obtenerEmpleados();
+      const empleadosConDocs = await Promise.all(
+        empleadosData.map(async (emp) => {
+          try {
+            const docsInfo = await documentoService.obtenerDocumentosPorEmpleado(emp.id_empleado!);
+            return {
+              ...emp,
+              documentosInfo: docsInfo
+            };
+          } catch (error) {
+            console.error(`Error al obtener documentos del empleado ${emp.id_empleado}:`, error);
+            return emp;
+          }
+        })
+      );
+      setEmployees(empleadosConDocs);
+    } catch (error) {
+      console.error('Error al cargar empleados:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los empleados",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getDocumentStatus = (employee: EmployeeWithDocuments) => {
+    if (!employee.documentosInfo) return 'delayed';
     
-    const lastScan = new Date(employee.last_document_scan);
+    const lastDoc = employee.documentosInfo.documentos[0];
+    if (!lastDoc) return 'delayed';
+    
+    const lastUpdate = new Date(lastDoc.fecha_subida);
     const today = new Date();
-    const diffDays = Math.floor((today.getTime() - lastScan.getTime()) / (1000 * 60 * 60 * 24));
+    const diffDays = Math.floor((today.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24));
     
-    if (employee.documents_status === 'complete') return 'complete';
+    if (!employee.documentosInfo.documentosPendientes) return 'complete';
     if (diffDays > 5) return 'delayed';
     return 'pending';
   };
@@ -122,30 +116,61 @@ export default function EmployeesPage() {
     employee.correo.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleSave = (employeeData: Employee) => {
-    if (selectedEmployee) {
-      setEmployees(employees.map(emp => 
-        emp.id_empleado === selectedEmployee.id_empleado 
-          ? { ...employeeData, id_empleado: selectedEmployee.id_empleado }
-          : emp
-      ));
-    } else {
-      const newEmployee = {
-        ...employeeData,
-        id_empleado: Math.max(...employees.map(e => e.id_empleado || 0)) + 1
-      };
-      setEmployees([...employees, newEmployee]);
+  const handleSave = async (employeeData: IEmpleado) => {
+    try {
+      if (selectedEmployee?.id_empleado) {
+        const updatedEmployee = await empleadoService.actualizarEmpleado(selectedEmployee.id_empleado, employeeData);
+        setEmployees(employees.map(emp => 
+          emp.id_empleado === selectedEmployee.id_empleado 
+            ? { ...updatedEmployee, documentosInfo: emp.documentosInfo }
+            : emp
+        ));
+        toast({
+          title: "Éxito",
+          description: "Empleado actualizado correctamente"
+        });
+      } else {
+        const newEmployee = await empleadoService.crearEmpleado(employeeData);
+        setEmployees([...employees, newEmployee]);
+        toast({
+          title: "Éxito",
+          description: "Empleado creado correctamente"
+        });
+      }
+      setIsModalOpen(false);
+      setSelectedEmployee(undefined);
+    } catch (error) {
+      console.error('Error al guardar empleado:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo guardar el empleado",
+        variant: "destructive"
+      });
     }
   };
 
-  const handleEdit = (employee: Employee) => {
+  const handleEdit = (employee: EmployeeWithDocuments) => {
     setSelectedEmployee(employee);
     setIsModalOpen(true);
   };
 
-  const handleDelete = (employeeId: number) => {
+  const handleDelete = async (employeeId: number) => {
     if (confirm('¿Está seguro que desea eliminar este empleado?')) {
-      setEmployees(employees.filter(emp => emp.id_empleado !== employeeId));
+      try {
+        await empleadoService.desactivarEmpleado(employeeId);
+        setEmployees(employees.filter(emp => emp.id_empleado !== employeeId));
+        toast({
+          title: "Éxito",
+          description: "Empleado eliminado correctamente"
+        });
+      } catch (error) {
+        console.error('Error al eliminar empleado:', error);
+        toast({
+          title: "Error",
+          description: "No se pudo eliminar el empleado",
+          variant: "destructive"
+        });
+      }
     }
   };
 
@@ -154,10 +179,18 @@ export default function EmployeesPage() {
     setIsModalOpen(true);
   };
 
-  const handleViewDocuments = (employee: Employee) => {
+  const handleViewDocuments = (employee: EmployeeWithDocuments) => {
     setSelectedEmployee(employee);
     setIsDocumentsModalOpen(true);
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-full">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 p-6">
@@ -201,7 +234,6 @@ export default function EmployeesPage() {
                   <TableHead>ID</TableHead>
                   <TableHead>Nombre</TableHead>
                   <TableHead>Fecha Nacimiento</TableHead>
-                  <TableHead>CURP</TableHead>
                   <TableHead>Teléfono</TableHead>
                   <TableHead>Correo</TableHead>
                   <TableHead>Domicilio</TableHead>
@@ -217,7 +249,6 @@ export default function EmployeesPage() {
                       <TableCell className="font-medium">{employee.id_empleado}</TableCell>
                       <TableCell>{employee.nombre}</TableCell>
                       <TableCell>{new Date(employee.fecha_nacimiento).toLocaleDateString()}</TableCell>
-                      <TableCell>{employee.curp}</TableCell>
                       <TableCell>{employee.telefono}</TableCell>
                       <TableCell>{employee.correo}</TableCell>
                       <TableCell className="max-w-[200px] truncate" title={employee.domicilio}>

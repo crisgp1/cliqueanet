@@ -13,6 +13,11 @@ import vehiculoRoutes from './src/routes/vehiculo.routes';
 import ventaRoutes from './src/routes/venta.routes';
 import empleadoRoutes from './src/routes/empleado.routes';
 
+// Importar rutas de catálogos
+import tipoTransaccionRoutes from './src/routes/catalogs/tipo-transaccion.routes';
+import rolUsuarioRoutes from './src/routes/catalogs/rol-usuario.routes';
+import tipoIdentificacionRoutes from './src/routes/catalogs/tipo-identificacion.routes';
+
 // Configurar variables de entorno
 dotenv.config();
 
@@ -105,7 +110,7 @@ app.use((req, res, next) => {
   verificarToken(req, res, next);
 });
 
-// Rutas
+// Rutas principales
 app.use('/api/usuarios', usuarioRoutes);
 app.use('/api/citas', citaRoutes);
 app.use('/api/clientes', clienteRoutes);
@@ -116,6 +121,11 @@ app.use('/api/transacciones', transaccionRoutes);
 app.use('/api/vehiculos', vehiculoRoutes);
 app.use('/api/ventas', ventaRoutes);
 app.use('/api/empleados', empleadoRoutes);
+
+// Rutas de catálogos
+app.use('/api/catalogs/tipos-transaccion', tipoTransaccionRoutes);
+app.use('/api/catalogs/roles-usuario', rolUsuarioRoutes);
+app.use('/api/catalogs/tipos-identificacion', tipoIdentificacionRoutes);
 
 // Ruta de prueba (también protegida)
 app.get('/', (req, res) => {

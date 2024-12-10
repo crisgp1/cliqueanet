@@ -10,6 +10,12 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { FaCar } from 'react-icons/fa';
+import { BsCalendarDate, BsCardText } from 'react-icons/bs';
+import { MdAttachMoney, MdQrCode, MdCardMembership, MdSave, MdDelete, MdRefresh, MdClose, MdDocumentScanner } from 'react-icons/md';
+import { IoColorPalette } from 'react-icons/io5';
+import { GiCarWheel } from 'react-icons/gi';
+import { RiFileList3Line, RiFileTextLine } from 'react-icons/ri';
 
 interface Vehicle {
   id_vehiculo: number;
@@ -63,7 +69,6 @@ export function InventoryModal({
   const [documentComment, setDocumentComment] = useState('');
   const [documentType, setDocumentType] = useState('');
 
-  // Effect to update form when selected vehicle changes
   useEffect(() => {
     if (vehicle) {
       setFormData({
@@ -79,7 +84,6 @@ export function InventoryModal({
         tarjeta_circulacion: vehicle.tarjeta_circulacion || '',
       });
     } else {
-      // Reset form if no vehicle is selected
       setFormData({
         marca: '',
         modelo: '',
@@ -98,7 +102,6 @@ export function InventoryModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Convert to numbers and save
     const vehicleData = {
       marca: formData.marca,
       modelo: formData.modelo,
@@ -124,9 +127,7 @@ export function InventoryModal({
   const handleScan = async () => {
     setScanning(true);
     try {
-      // Simulate scanning process
       await new Promise(resolve => setTimeout(resolve, 2000));
-      // Mock scanned document
       setCurrentDocument({
         url: 'https://example.com/scanned-doc.pdf',
         tipo_documento: documentType,
@@ -154,13 +155,11 @@ export function InventoryModal({
     if (!currentDocument) return;
     
     try {
-      // Here you would typically make an API call to save the document
       console.log('Saving document:', {
         ...currentDocument,
         descripcion: documentComment
       });
       
-      // Reset form after successful save
       handleDeleteScan();
     } catch (error) {
       console.error('Error saving document:', error);
@@ -169,17 +168,20 @@ export function InventoryModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px]">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>
-              {vehicle ? 'Editar Vehículo' : 'Nuevo Vehículo'}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
+      <DialogContent className="max-w-[95vw] w-full sm:max-w-[600px] max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader className="px-6 py-4 border-b">
+          <DialogTitle className="flex items-center gap-2">
+            <FaCar className="h-5 w-5" />
+            {vehicle ? 'Editar Vehículo' : 'Nuevo Vehículo'}
+          </DialogTitle>
+        </DialogHeader>
+        
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto px-6 py-4 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300/40 hover:[&::-webkit-scrollbar-thumb]:bg-slate-300/60 [&::-webkit-scrollbar-track]:bg-slate-100/50 transition-colors">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label htmlFor="marca" className="text-sm font-medium">
+                <label htmlFor="marca" className="text-sm font-medium flex items-center gap-2">
+                  <FaCar className="h-4 w-4" />
                   Marca
                 </label>
                 <Input
@@ -191,7 +193,8 @@ export function InventoryModal({
                 />
               </div>
               <div className="space-y-2">
-                <label htmlFor="modelo" className="text-sm font-medium">
+                <label htmlFor="modelo" className="text-sm font-medium flex items-center gap-2">
+                  <FaCar className="h-4 w-4" />
                   Modelo
                 </label>
                 <Input
@@ -203,7 +206,8 @@ export function InventoryModal({
                 />
               </div>
               <div className="space-y-2">
-                <label htmlFor="anio" className="text-sm font-medium">
+                <label htmlFor="anio" className="text-sm font-medium flex items-center gap-2">
+                  <BsCalendarDate className="h-4 w-4" />
                   Año
                 </label>
                 <Input
@@ -218,7 +222,8 @@ export function InventoryModal({
                 />
               </div>
               <div className="space-y-2">
-                <label htmlFor="precio" className="text-sm font-medium">
+                <label htmlFor="precio" className="text-sm font-medium flex items-center gap-2">
+                  <MdAttachMoney className="h-4 w-4" />
                   Precio
                 </label>
                 <Input
@@ -232,7 +237,8 @@ export function InventoryModal({
                 />
               </div>
               <div className="space-y-2">
-                <label htmlFor="num_serie" className="text-sm font-medium">
+                <label htmlFor="num_serie" className="text-sm font-medium flex items-center gap-2">
+                  <MdQrCode className="h-4 w-4" />
                   Número de Serie
                 </label>
                 <Input
@@ -244,7 +250,8 @@ export function InventoryModal({
                 />
               </div>
               <div className="space-y-2">
-                <label htmlFor="color" className="text-sm font-medium">
+                <label htmlFor="color" className="text-sm font-medium flex items-center gap-2">
+                  <IoColorPalette className="h-4 w-4" />
                   Color
                 </label>
                 <Input
@@ -256,7 +263,8 @@ export function InventoryModal({
                 />
               </div>
               <div className="space-y-2">
-                <label htmlFor="num_motor" className="text-sm font-medium">
+                <label htmlFor="num_motor" className="text-sm font-medium flex items-center gap-2">
+                  <GiCarWheel className="h-4 w-4" />
                   Número de Motor
                 </label>
                 <Input
@@ -268,7 +276,8 @@ export function InventoryModal({
                 />
               </div>
               <div className="space-y-2">
-                <label htmlFor="num_factura" className="text-sm font-medium">
+                <label htmlFor="num_factura" className="text-sm font-medium flex items-center gap-2">
+                  <RiFileList3Line className="h-4 w-4" />
                   Número de Factura
                 </label>
                 <Input
@@ -279,7 +288,8 @@ export function InventoryModal({
                 />
               </div>
               <div className="space-y-2">
-                <label htmlFor="placas" className="text-sm font-medium">
+                <label htmlFor="placas" className="text-sm font-medium flex items-center gap-2">
+                  <BsCardText className="h-4 w-4" />
                   Placas
                 </label>
                 <Input
@@ -290,7 +300,8 @@ export function InventoryModal({
                 />
               </div>
               <div className="space-y-2">
-                <label htmlFor="tarjeta_circulacion" className="text-sm font-medium">
+                <label htmlFor="tarjeta_circulacion" className="text-sm font-medium flex items-center gap-2">
+                  <MdCardMembership className="h-4 w-4" />
                   Tarjeta de Circulación
                 </label>
                 <Input
@@ -302,14 +313,17 @@ export function InventoryModal({
               </div>
             </div>
 
-            {/* Document Scanning Section */}
             <div className="mt-6 border-t pt-6">
-              <h3 className="text-lg font-medium mb-4">Documentos del Vehículo</h3>
+              <h3 className="text-lg font-medium mb-4 flex items-center gap-2">
+                <RiFileTextLine className="h-5 w-5" />
+                Documentos del Vehículo
+              </h3>
               
               {!currentDocument ? (
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label htmlFor="documentType" className="text-sm font-medium">
+                    <label htmlFor="documentType" className="text-sm font-medium flex items-center gap-2">
+                      <RiFileTextLine className="h-4 w-4" />
                       Tipo de Documento
                     </label>
                     <Select value={documentType} onValueChange={setDocumentType}>
@@ -329,8 +343,9 @@ export function InventoryModal({
                     type="button"
                     onClick={handleScan}
                     disabled={scanning || !documentType}
-                    className="w-full"
+                    className="w-full flex items-center justify-center gap-2"
                   >
+                    <MdDocumentScanner className="h-4 w-4" />
                     {scanning ? 'Escaneando...' : 'Escanear Documento'}
                   </Button>
                 </div>
@@ -339,7 +354,8 @@ export function InventoryModal({
                   <div className="p-4 border rounded-lg">
                     <p className="text-sm mb-2">Documento escaneado exitosamente</p>
                     <div className="space-y-2">
-                      <label htmlFor="documentComment" className="text-sm font-medium">
+                      <label htmlFor="documentComment" className="text-sm font-medium flex items-center gap-2">
+                        <RiFileTextLine className="h-4 w-4" />
                         Comentarios
                       </label>
                       <Textarea
@@ -353,18 +369,21 @@ export function InventoryModal({
                   </div>
                   
                   <div className="flex gap-2">
-                    <Button type="button" variant="outline" onClick={handleRescan}>
+                    <Button type="button" variant="outline" onClick={handleRescan} className="flex items-center gap-2">
+                      <MdRefresh className="h-4 w-4" />
                       Reescanear
                     </Button>
-                    <Button type="button" variant="destructive" onClick={handleDeleteScan}>
+                    <Button type="button" variant="destructive" onClick={handleDeleteScan} className="flex items-center gap-2">
+                      <MdDelete className="h-4 w-4" />
                       Eliminar
                     </Button>
                     <Button 
                       type="button"
                       onClick={handleSaveDocument}
                       disabled={!documentComment}
-                      className="ml-auto"
+                      className="ml-auto flex items-center gap-2"
                     >
+                      <MdSave className="h-4 w-4" />
                       Guardar Documento
                     </Button>
                   </div>
@@ -372,11 +391,14 @@ export function InventoryModal({
               )}
             </div>
           </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+
+          <DialogFooter className="px-6 py-4 border-t mt-auto">
+            <Button type="button" variant="outline" onClick={onClose} className="flex items-center gap-2">
+              <MdClose className="h-4 w-4" />
               Cancelar
             </Button>
-            <Button type="submit">
+            <Button type="submit" className="flex items-center gap-2">
+              <MdSave className="h-4 w-4" />
               {vehicle ? 'Guardar Cambios' : 'Agregar Vehículo'}
             </Button>
           </DialogFooter>

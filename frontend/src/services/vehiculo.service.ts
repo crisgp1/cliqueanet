@@ -1,75 +1,135 @@
-const API_URL = 'http://localhost:3001/api/v1';
+import axios from 'axios';
 
-export interface Vehicle {
-  id_vehiculo: number;
-  marca: string;
-  modelo: string;
-  anio: number;
-  precio: number;
-  num_serie: string;
-  color: string;
-  num_motor: string;
-  num_factura?: string;
-  placas?: string;
-  tarjeta_circulacion?: string;
+const API_URL = 'http://localhost:3001/api';
+
+export interface Vehiculo {
+    id_vehiculo: number;
+    marca: string;
+    modelo: string;
+    anio: number;
+    precio: number;
+    num_serie: string;
+    color: string;
+    num_motor: string;
+    num_factura?: string;
+    placas?: string;
+    tarjeta_circulacion?: string;
+    comentarios_internos?: string;
 }
 
-export const vehiculoService = {
-  // Obtener todos los vehículos
-  getAll: async (): Promise<Vehicle[]> => {
-    const response = await fetch(`${API_URL}/vehiculos`);
-    if (!response.ok) {
-      throw new Error('Error al obtener vehículos');
-    }
-    return response.json();
-  },
+export interface CreateVehiculoDto {
+    marca: string;
+    modelo: string;
+    anio: number;
+    precio: number;
+    num_serie: string;
+    color: string;
+    num_motor: string;
+    num_factura?: string;
+    placas?: string;
+    tarjeta_circulacion?: string;
+    comentarios_internos?: string;
+}
 
-  // Obtener un vehículo por ID
-  getById: async (id: number): Promise<Vehicle> => {
-    const response = await fetch(`${API_URL}/vehiculos/${id}`);
-    if (!response.ok) {
-      throw new Error('Error al obtener vehículo');
-    }
-    return response.json();
-  },
+export interface UpdateVehiculoDto {
+    marca?: string;
+    modelo?: string;
+    anio?: number;
+    precio?: number;
+    num_serie?: string;
+    color?: string;
+    num_motor?: string;
+    num_factura?: string;
+    placas?: string;
+    tarjeta_circulacion?: string;
+    comentarios_internos?: string;
+}
 
-  // Crear un nuevo vehículo
-  create: async (vehicle: Omit<Vehicle, 'id_vehiculo'>): Promise<Vehicle> => {
-    const response = await fetch(`${API_URL}/vehiculos`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(vehicle),
-    });
-    if (!response.ok) {
-      throw new Error('Error al crear vehículo');
+class VehiculoService {
+    async getAll(): Promise<Vehiculo[]> {
+        try {
+            const response = await axios.get<Vehiculo[]>(`${API_URL}/vehiculos`);
+            return response.data;
+        } catch (error) {
+            console.error('Error al obtener vehículos:', error);
+            throw error;
+        }
     }
-    return response.json();
-  },
 
-  // Actualizar un vehículo
-  update: async (id: number, vehicle: Partial<Vehicle>): Promise<Vehicle> => {
-    const response = await fetch(`${API_URL}/vehiculos/${id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(vehicle),
-    });
-    if (!response.ok) {
-      throw new Error('Error al actualizar vehículo');
+    async getById(id: number): Promise<Vehiculo> {
+        try {
+            const response = await axios.get<Vehiculo>(`${API_URL}/vehiculos/${id}`);
+            return response.data;
+        } catch (error) {
+            console.error(`Error al obtener vehículo ${id}:`, error);
+            throw error;
+        }
     }
-    return response.json();
-  },
 
-  // Eliminar un vehículo
-  delete: async (id: number): Promise<void> => {
-    const response = await fetch(`${API_URL}/vehiculos/${id}`, {
-      method: 'DELETE',
-    });
-    if (!response.ok) {
-      throw new Error('Error al eliminar vehículo');
+    async create(vehiculo: CreateVehiculoDto): Promise<Vehiculo> {
+        try {
+            const response = await axios.post<Vehiculo>(`${API_URL}/vehiculos`, vehiculo);
+            return response.data;
+        } catch (error) {
+            console.error('Error al crear vehículo:', error);
+            throw error;
+        }
     }
-  },
-};
+
+    async update(id: number, vehiculo: UpdateVehiculoDto): Promise<Vehiculo> {
+        try {
+            const response = await axios.put<Vehiculo>(`${API_URL}/vehiculos/${id}`, vehiculo);
+            return response.data;
+        } catch (error) {
+            console.error(`Error al actualizar vehículo ${id}:`, error);
+            throw error;
+        }
+    }
+
+    async delete(id: number): Promise<void> {
+        try {
+            await axios.delete(`${API_URL}/vehiculos/${id}`);
+        } catch (error) {
+            console.error(`Error al eliminar vehículo ${id}:`, error);
+            throw error;
+        }
+    }
+
+    async getByNumSerie(numSerie: string): Promise<Vehiculo | null> {
+        try {
+            const response = await axios.get<Vehiculo[]>(`${API_URL}/vehiculos`, {
+                params: { numSerie }
+            });
+            return response.data[0] || null;
+        } catch (error) {
+            console.error(`Error al buscar vehículo por número de serie ${numSerie}:`, error);
+            throw error;
+        }
+    }
+
+    async getByPlacas(placas: string): Promise<Vehiculo | null> {
+        try {
+            const response = await axios.get<Vehiculo[]>(`${API_URL}/vehiculos`, {
+                params: { placas }
+            });
+            return response.data[0] || null;
+        } catch (error) {
+            console.error(`Error al buscar vehículo por placas ${placas}:`, error);
+            throw error;
+        }
+    }
+
+    async getByNumMotor(numMotor: string): Promise<Vehiculo | null> {
+        try {
+            const response = await axios.get<Vehiculo[]>(`${API_URL}/vehiculos`, {
+                params: { numMotor }
+            });
+            return response.data[0] || null;
+        } catch (error) {
+            console.error(`Error al buscar vehículo por número de motor ${numMotor}:`, error);
+            throw error;
+        }
+    }
+}
+
+export default new VehiculoService();

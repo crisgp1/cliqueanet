@@ -6,6 +6,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "./dialog";
+import { LoaderOverlay } from './loader';
 
 interface BaseModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ interface BaseModalProps {
   showHeader?: boolean;
   showFooter?: boolean;
   className?: string;
+  isLoading?: boolean;
 }
 
 const maxWidthClasses = {
@@ -37,7 +39,8 @@ export function BaseModal({
   maxWidth = 'md',
   showHeader = true,
   showFooter = true,
-  className = ''
+  className = '',
+  isLoading = false
 }: BaseModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -49,9 +52,12 @@ export function BaseModal({
           overflow-hidden 
           flex 
           flex-col
+          relative
           ${className}
         `}
       >
+        {isLoading && <LoaderOverlay />}
+        
         {showHeader && (
           <DialogHeader className="px-6 py-4 border-b">
             <DialogTitle>
@@ -83,6 +89,7 @@ export function ExampleModal({ isOpen, onClose }) {
       onClose={onClose}
       title="Título del Modal"
       maxWidth="md"
+      isLoading={false} // Controla el estado de carga
       footer={
         <>
           <Button variant="outline" onClick={onClose}>

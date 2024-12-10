@@ -1,13 +1,15 @@
-import { useState } from 'react';
+import { useState, useRef, ChangeEvent } from 'react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Alert } from "@/components/ui/alert";
+} from "../../components/ui/dialog";
+import { Button } from "../../components/ui/button";
+import { Alert } from "../../components/ui/alert";
 import { FileText, Scan, AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
+import documentoService from '../../services/documento.service';
+import { toast } from '../../components/ui/use-toast';
 
 interface DocumentsModalProps {
   isOpen: boolean;
@@ -27,48 +29,95 @@ export function DocumentsModal({
   const [isScanning, setIsScanning] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [currentDocumentId, setCurrentDocumentId] = useState<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleGeneratePdf = () => {
+  const handleGeneratePdf = async () => {
     if (pdfAttempts < 3) {
-      console.log('Generating PDF for transaction:', transactionId);
-      const blob = new Blob(['Mock PDF content'], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `compraventa_${transactionId}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-      setPdfAttempts(prev => prev + 1);
+      try {
+        const response = await documentoService.generarCompraVentaPdf(transactionId);
+        const link = document.createElement('a');
+        link.href = response.url;
+        link.download = response.filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setPdfAttempts(prev => prev + 1);
+      } catch (error) {
+        console.error('Error al generar PDF:', error);
+        toast({
+          title: "Error",
+          description: "No se pudo generar el PDF",
+          variant: "destructive"
+        });
+      }
     }
   };
 
   const handleScanDocuments = () => {
-    setIsScanning(true);
-    setTimeout(() => {
-      setIsScanning(false);
-      setShowSignatureConfirm(true);
-    }, 2000);
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
   };
 
-  const handleSignatureConfirm = (isValid: boolean) => {
-    if (isValid) {
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsScanning(true);
+    try {
+      const documentos = await documentoService.escanearDocumentos(transactionId, Array.from(files));
+      if (documentos.length > 0) {
+        setCurrentDocumentId(documentos[0].id);
+        setShowSignatureConfirm(true);
+      }
+    } catch (error) {
+      console.error('Error al escanear documentos:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron procesar los documentos",
+        variant: "destructive"
+      });
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const handleSignatureConfirm = async (isValid: boolean) => {
+    if (isValid && currentDocumentId) {
       setShowSignatureConfirm(false);
       setIsUploading(true);
-      // Mock upload process
-      setTimeout(() => {
-        setIsUploading(false);
-        setShowSuccess(true);
-        if (onUpdateStatus) {
-          onUpdateStatus(transactionId);
+      try {
+        const isValidSignature = await documentoService.validarFirma(currentDocumentId);
+        if (isValidSignature) {
+          setShowSuccess(true);
+          if (onUpdateStatus) {
+            onUpdateStatus(transactionId);
+          }
+          setTimeout(() => {
+            setShowSuccess(false);
+            onClose();
+          }, 1500);
+        } else {
+          toast({
+            title: "Error",
+            description: "La firma no es válida",
+            variant: "destructive"
+          });
+          if (pdfAttempts < 3) {
+            handleGeneratePdf();
+          }
         }
-        // Close modal after showing success
-        setTimeout(() => {
-          setShowSuccess(false);
-          onClose();
-        }, 1500);
-      }, 2000);
+      } catch (error) {
+        console.error('Error al validar firma:', error);
+        toast({
+          title: "Error",
+          description: "No se pudo validar la firma",
+          variant: "destructive"
+        });
+      } finally {
+        setIsUploading(false);
+      }
     } else {
       setShowSignatureConfirm(false);
       if (pdfAttempts < 3) {
@@ -112,6 +161,15 @@ export function DocumentsModal({
                 <Scan className="mr-2 h-4 w-4" />
                 {isScanning ? 'Escaneando...' : 'Escanear Documentos'}
               </Button>
+
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                multiple
+                accept=".pdf,.jpg,.jpeg,.png"
+                className="hidden"
+              />
             </div>
           )}
 
@@ -140,7 +198,7 @@ export function DocumentsModal({
           {isUploading && (
             <div className="flex flex-col items-center justify-center space-y-4 py-8">
               <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-              <p className="text-sm text-gray-500">Subiendo documentos...</p>
+              <p className="text-sm text-gray-500">Procesando documentos...</p>
             </div>
           )}
 

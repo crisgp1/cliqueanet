@@ -1,37 +1,27 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
 import { BaseModal } from "../ui/base-modal";
 import { FileText, Upload } from 'lucide-react';
-
-interface Employee {
-  id_empleado?: number;
-  nombre: string;
-  id_tipo_identificacion: number;
-  num_identificacion: string;
-  curp: string;
-  fecha_nacimiento: string;
-  telefono: string;
-  correo: string;
-  domicilio: string;
-  fecha_contratacion: string;
-  id_rol: number;
-  comentarios?: string;
-  expediente_completo?: boolean;
-  tipo_documento?: string;
-  last_document_scan?: string;
-  documents_status?: 'complete' | 'pending' | 'delayed';
-}
+import { toast } from "../ui/use-toast";
+import { empleadoService, IEmpleado } from '../../services/empleado.service';
+import { rolUsuarioService, RolUsuario } from '../../services/rol-usuario.service';
+import { tipoIdentificacionService, TipoIdentificacion } from '../../services/tipo-identificacion.service';
+import { documentoService } from '../../services/documento.service';
 
 interface EmployeeModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (employee: Employee) => void;
-  employee?: Employee;
+  onSave: (employee: IEmpleado) => void;
+  employee?: IEmpleado;
 }
 
-const DOCUMENT_TYPES = [
+interface EmployeeFormData extends Omit<IEmpleado, 'id_empleado'> {
+  tipoDocumento?: string;
+}
+
+const TIPOS_DOCUMENTO = [
   { value: 'cv', label: 'CV' },
   { value: 'ine', label: 'INE' },
   { value: 'curp', label: 'CURP' },
@@ -42,46 +32,123 @@ const DOCUMENT_TYPES = [
 ];
 
 export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeModalProps) {
-  const [formData, setFormData] = useState<Omit<Employee, 'id_empleado'>>({
+  const [formData, setFormData] = useState<EmployeeFormData>({
     nombre: employee?.nombre || '',
-    id_tipo_identificacion: employee?.id_tipo_identificacion || 1,
+    id_tipo_identificacion: employee?.id_tipo_identificacion || 0,
     num_identificacion: employee?.num_identificacion || '',
     curp: employee?.curp || '',
-    fecha_nacimiento: employee?.fecha_nacimiento ? new Date(employee.fecha_nacimiento).toISOString().split('T')[0] : '',
+    fecha_nacimiento: employee?.fecha_nacimiento ? new Date(employee.fecha_nacimiento) : new Date(),
     telefono: employee?.telefono || '',
     correo: employee?.correo || '',
     domicilio: employee?.domicilio || '',
-    fecha_contratacion: employee?.fecha_contratacion ? new Date(employee.fecha_contratacion).toISOString().split('T')[0] : '',
-    id_rol: employee?.id_rol || 1,
-    comentarios: employee?.comentarios || '',
-    expediente_completo: employee?.expediente_completo || false,
-    tipo_documento: employee?.tipo_documento || '',
-    last_document_scan: employee?.last_document_scan,
-    documents_status: employee?.documents_status
+    fecha_contratacion: employee?.fecha_contratacion ? new Date(employee.fecha_contratacion) : new Date(),
+    id_rol: employee?.id_rol || 0,
+    tipoDocumento: ''
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [roles, setRoles] = useState<RolUsuario[]>([]);
+  const [tiposIdentificacion, setTiposIdentificacion] = useState<TipoIdentificacion[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const loadCatalogs = async () => {
+      try {
+        const [rolesData, tiposIdData] = await Promise.all([
+          rolUsuarioService.getAll(),
+          tipoIdentificacionService.getAll()
+        ]);
+        setRoles(rolesData);
+        setTiposIdentificacion(tiposIdData);
+      } catch (error) {
+        console.error('Error al cargar catálogos:', error);
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los catálogos",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (isOpen) {
+      loadCatalogs();
+    }
+  }, [isOpen]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
-    onClose();
+    setIsSaving(true);
+    try {
+      const { tipoDocumento, ...employeeData } = formData;
+      await onSave(employeeData);
+      onClose();
+    } catch (error) {
+      console.error('Error al guardar empleado:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo guardar el empleado",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
-    let newValue: string | number | boolean = value;
+    let newValue: string | number | Date = value;
 
     if (name === 'id_tipo_identificacion' || name === 'id_rol') {
       newValue = parseInt(value, 10);
-    } else if (type === 'checkbox') {
-      newValue = (e.target as HTMLInputElement).checked;
+    } else if (type === 'date') {
+      newValue = new Date(value);
     }
 
     setFormData(prev => ({ ...prev, [name]: newValue }));
   };
 
-  const handleScanDocument = () => {
-    // Aquí se implementará la lógica de escaneo
-    console.log('Escanear documento:', formData.tipo_documento);
+  const handleFileUpload = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0 || !employee?.id_empleado || !formData.tipoDocumento) return;
+
+    setIsUploading(true);
+    try {
+      await documentoService.crearDocumento({
+        nombre: files[0].name,
+        tipo: formData.tipoDocumento,
+        archivo: files[0],
+        id_empleado: employee.id_empleado
+      });
+
+      toast({
+        title: "Éxito",
+        description: "Documento subido correctamente"
+      });
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      setFormData(prev => ({ ...prev, tipoDocumento: '' }));
+    } catch (error) {
+      console.error('Error al subir documento:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo subir el documento",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const modalContent = (
@@ -111,10 +178,12 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
             required
             className="w-full p-2 border rounded-md"
           >
-            <option value={1}>INE</option>
-            <option value={2}>Pasaporte</option>
-            <option value={3}>Cédula profesional</option>
-            <option value={4}>Licencia de conducir</option>
+            <option value="">Seleccione tipo</option>
+            {tiposIdentificacion.map(tipo => (
+              <option key={tipo.id} value={tipo.id}>
+                {tipo.nombre}
+              </option>
+            ))}
           </select>
         </div>
         <div className="space-y-2">
@@ -153,7 +222,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
             id="fecha_nacimiento"
             name="fecha_nacimiento"
             type="date"
-            value={formData.fecha_nacimiento}
+            value={formData.fecha_nacimiento.toISOString().split('T')[0]}
             onChange={handleChange}
             required
           />
@@ -203,7 +272,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
             id="fecha_contratacion"
             name="fecha_contratacion"
             type="date"
-            value={formData.fecha_contratacion}
+            value={formData.fecha_contratacion.toISOString().split('T')[0]}
             onChange={handleChange}
             required
           />
@@ -220,84 +289,68 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
             required
             className="w-full p-2 border rounded-md"
           >
-            <option value={1}>Administrador</option>
-            <option value={2}>Ventas</option>
-            <option value={3}>RRHH</option>
-            <option value={4}>Gerente_general</option>
-            <option value={5}>Capturista</option>
+            <option value="">Seleccione rol</option>
+            {roles.map(rol => (
+              <option key={rol.id} value={rol.id}>
+                {rol.nombre}
+              </option>
+            ))}
           </select>
         </div>
       </div>
 
-      <div className="border-t pt-4 mt-6">
-        <h3 className="text-lg font-semibold mb-4">Documentos del Empleado</h3>
-        <div className="space-y-4">
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <select
-                id="tipo_documento"
-                name="tipo_documento"
-                value={formData.tipo_documento}
-                onChange={handleChange}
-                className="w-full p-2 border rounded-md"
+      {employee?.id_empleado && (
+        <div className="border-t pt-4 mt-6">
+          <h3 className="text-lg font-semibold mb-4">Documentos del Empleado</h3>
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <select
+                  id="tipoDocumento"
+                  name="tipoDocumento"
+                  value={formData.tipoDocumento}
+                  onChange={handleChange}
+                  className="w-full p-2 border rounded-md"
+                >
+                  <option value="" disabled hidden>Seleccione tipo de documento</option>
+                  {TIPOS_DOCUMENTO.map(tipo => (
+                    <option key={tipo.value} value={tipo.value}>
+                      {tipo.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Button
+                type="button"
+                onClick={handleFileUpload}
+                disabled={!formData.tipoDocumento || isUploading}
+                className="flex items-center gap-2"
               >
-                <option value="" disabled hidden>Seleccione tipo de documento</option>
-                {DOCUMENT_TYPES.map(type => (
-                  <option key={type.value} value={type.value}>
-                    {type.label}
-                  </option>
-                ))}
-              </select>
+                <Upload className="h-4 w-4" />
+                {isUploading ? 'Subiendo...' : 'Subir Documento'}
+              </Button>
             </div>
-            <Button
-              type="button"
-              onClick={handleScanDocument}
-              disabled={!formData.tipo_documento}
-              className="flex items-center gap-2"
-            >
-              <Upload className="h-4 w-4" />
-              Escanear Documento
-            </Button>
-          </div>
 
-          <div className="space-y-2">
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                name="expediente_completo"
-                checked={formData.expediente_completo}
-                onChange={handleChange}
-                className="rounded border-gray-300"
-              />
-              <span className="text-sm font-medium">Expediente Completo</span>
-            </label>
-          </div>
-
-          <div className="space-y-2">
-            <label htmlFor="comentarios" className="text-sm font-medium">
-              Comentarios sobre documentos faltantes
-            </label>
-            <Textarea
-              id="comentarios"
-              name="comentarios"
-              value={formData.comentarios}
-              onChange={handleChange}
-              placeholder="Especifique los documentos faltantes o cualquier observación..."
-              className="min-h-[100px]"
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              className="hidden"
+              accept=".pdf,.jpg,.jpeg,.png"
             />
           </div>
         </div>
-      </div>
+      )}
     </form>
   );
 
   const modalFooter = (
     <>
-      <Button type="button" variant="outline" onClick={onClose}>
+      <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
         Cancelar
       </Button>
-      <Button type="submit" onClick={handleSubmit}>
-        {employee ? 'Guardar Cambios' : 'Crear Empleado'}
+      <Button type="submit" onClick={handleSubmit} disabled={isSaving}>
+        {isSaving ? 'Guardando...' : employee ? 'Guardar Cambios' : 'Crear Empleado'}
       </Button>
     </>
   );
@@ -309,6 +362,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
       title={employee ? 'Editar Empleado' : 'Nuevo Empleado'}
       maxWidth="lg"
       footer={modalFooter}
+      isLoading={isLoading}
     >
       {modalContent}
     </BaseModal>

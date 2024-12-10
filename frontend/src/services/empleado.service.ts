@@ -1,20 +1,27 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 export interface IEmpleado {
-    id?: number;
+    id_empleado?: number;
     nombre: string;
-    apellido: string;
-    email: string;
+    id_tipo_identificacion: number;
+    num_identificacion: string;
+    curp: string;
+    fecha_nacimiento: Date;
     telefono: string;
-    direccion?: string;
-    rolId: number;
-    tipoIdentificacionId: number;
-    numeroIdentificacion: string;
-    fechaNacimiento?: Date;
-    activo?: boolean;
+    correo: string;
+    domicilio: string;
+    fecha_contratacion: Date;
+    id_rol: number;
     password?: string;
+    num_empleado?: string;
+}
+
+interface ApiResponse<T> {
+    success: boolean;
+    data: T;
+    message: string;
 }
 
 export class EmpleadoService {
@@ -22,7 +29,7 @@ export class EmpleadoService {
     private baseUrl: string;
 
     private constructor() {
-        this.baseUrl = `${API_URL}/api/empleados`;
+        this.baseUrl = `${API_URL}/api/usuarios`;
     }
 
     public static getInstance(): EmpleadoService {
@@ -32,81 +39,79 @@ export class EmpleadoService {
         return EmpleadoService.instance;
     }
 
-    public async obtenerEmpleados() {
+    public async obtenerEmpleados(): Promise<IEmpleado[]> {
         try {
-            const response = await axios.get(this.baseUrl, {
+            const response = await axios.get<ApiResponse<IEmpleado[]>>(this.baseUrl, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
             });
-            return response.data;
+            return response.data.data;
         } catch (error) {
             throw this.handleError(error);
         }
     }
 
-    public async obtenerEmpleadoPorId(id: number) {
+    public async obtenerEmpleadoPorId(id: number): Promise<IEmpleado> {
         try {
-            const response = await axios.get(`${this.baseUrl}/${id}`, {
+            const response = await axios.get<ApiResponse<IEmpleado>>(`${this.baseUrl}/${id}`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
             });
-            return response.data;
+            return response.data.data;
         } catch (error) {
             throw this.handleError(error);
         }
     }
 
-    public async crearEmpleado(empleado: IEmpleado) {
+    public async crearEmpleado(empleado: Omit<IEmpleado, 'id_empleado'>): Promise<IEmpleado> {
         try {
-            const response = await axios.post(this.baseUrl, empleado, {
+            const response = await axios.post<ApiResponse<IEmpleado>>(this.baseUrl, empleado, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`,
                     'Content-Type': 'application/json'
                 }
             });
-            return response.data;
+            return response.data.data;
         } catch (error) {
             throw this.handleError(error);
         }
     }
 
-    public async actualizarEmpleado(id: number, empleado: Partial<IEmpleado>) {
+    public async actualizarEmpleado(id: number, empleado: Partial<IEmpleado>): Promise<IEmpleado> {
         try {
-            const response = await axios.put(`${this.baseUrl}/${id}`, empleado, {
+            const response = await axios.put<ApiResponse<IEmpleado>>(`${this.baseUrl}/${id}`, empleado, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`,
                     'Content-Type': 'application/json'
                 }
             });
-            return response.data;
+            return response.data.data;
         } catch (error) {
             throw this.handleError(error);
         }
     }
 
-    public async desactivarEmpleado(id: number) {
+    public async desactivarEmpleado(id: number): Promise<void> {
         try {
-            const response = await axios.put(`${this.baseUrl}/${id}/desactivar`, {}, {
+            await axios.put(`${this.baseUrl}/${id}/desactivar`, {}, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
             });
-            return response.data;
         } catch (error) {
             throw this.handleError(error);
         }
     }
 
-    public async reactivarEmpleado(id: number) {
+    public async reactivarEmpleado(id: number): Promise<void> {
         try {
-            const response = await axios.put(`${this.baseUrl}/${id}/reactivar`, {}, {
+            await axios.put(`${this.baseUrl}/${id}/reactivar`, {}, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
             });
-            return response.data;
         } catch (error) {
             throw this.handleError(error);
         }
@@ -116,15 +121,14 @@ export class EmpleadoService {
         passwordActual: string; 
         passwordNuevo: string; 
         confirmarPassword: string;
-    }) {
+    }): Promise<void> {
         try {
-            const response = await axios.put(`${this.baseUrl}/${id}/password`, passwords, {
+            await axios.put(`${this.baseUrl}/${id}/password`, passwords, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`,
                     'Content-Type': 'application/json'
                 }
             });
-            return response.data;
         } catch (error) {
             throw this.handleError(error);
         }

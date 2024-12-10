@@ -49,3 +49,14 @@ export interface LoginCredentials {
   ip_address?: string;
   user_agent?: string;
 }
+
+export interface TipoTransaccion {
+  id: number;
+  nombre: string;
+}
+
+export interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  message: string;
+}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, ChangeEvent } from 'react';
 import {
   Table,
   TableBody,
@@ -6,95 +6,106 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "../../../components/ui/table";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+} from "../../../components/ui/card";
+import { Button } from "../../../components/ui/button";
+import { Input } from "../../../components/ui/input";
 import { Search, Plus, Pencil, Trash2 } from 'lucide-react';
-import { CustomerModal } from '@/components/modals/CustomerModal';
-
-interface Customer {
-  customer_id: number;
-  name: string;
-  identification_type: string;
-  identification_number: string;
-  birth_date: string;
-  phone: string;
-  email: string;
-  address: string;
-  curp: string;
-}
-
-const customersMock: Customer[] = [
-  {
-    customer_id: 1,
-    name: "Ana López",
-    identification_type: "INE",
-    identification_number: "1234567890",
-    birth_date: "1992-03-15",
-    phone: "555-0125",
-    email: "ana@ejemplo.com",
-    address: "Calle Roble 789",
-    curp: "LOPA920315MDFXXX01"
-  },
-  {
-    customer_id: 2,
-    name: "Carlos Ruiz",
-    identification_type: "Pasaporte",
-    identification_number: "A98765432",
-    birth_date: "1985-11-20",
-    phone: "555-0126",
-    email: "carlos@ejemplo.com",
-    address: "Avenida Pinos 321",
-    curp: "RUIC851120HDFXXX02"
-  }
-];
+import { CustomerModal } from '../../../components/modals/CustomerModal';
+import clienteService, { Cliente } from '../../../services/cliente.service';
+import { toast } from '../../../components/ui/use-toast';
 
 export default function CustomersPage() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [customers, setCustomers] = useState<Customer[]>(customersMock);
+  const [customers, setCustomers] = useState<Cliente[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | undefined>(undefined);
+  const [selectedCustomer, setSelectedCustomer] = useState<Cliente | undefined>(undefined);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const filteredCustomers = customers.filter(customer =>
-    customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.curp.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.identification_number.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  useEffect(() => {
+    loadCustomers();
+  }, []);
 
-  const handleSave = (customerData: Omit<Customer, 'customer_id'>) => {
-    if (selectedCustomer) {
-      // Editar cliente existente
-      setCustomers(customers.map(cust => 
-        cust.customer_id === selectedCustomer.customer_id 
-          ? { ...customerData, customer_id: selectedCustomer.customer_id }
-          : cust
-      ));
-    } else {
-      // Crear nuevo cliente
-      const newCustomer = {
-        ...customerData,
-        customer_id: Math.max(...customers.map(c => c.customer_id)) + 1
-      };
-      setCustomers([...customers, newCustomer]);
+  const loadCustomers = async () => {
+    try {
+      const data = await clienteService.getAll();
+      setCustomers(data);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los clientes",
+        variant: "destructive"
+      });
+      console.error('Error al cargar clientes:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleEdit = (customer: Customer) => {
+  const filteredCustomers = customers.filter(customer =>
+    customer.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    customer.correo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    customer.curp.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    customer.num_identificacion.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleSave = async (customerData: Omit<Cliente, 'id_cliente'>) => {
+    try {
+      if (selectedCustomer) {
+        // Editar cliente existente
+        await clienteService.update(selectedCustomer.id_cliente, customerData);
+        toast({
+          title: "Éxito",
+          description: "Cliente actualizado correctamente"
+        });
+      } else {
+        // Crear nuevo cliente
+        await clienteService.create(customerData);
+        toast({
+          title: "Éxito",
+          description: "Cliente creado correctamente"
+        });
+      }
+      loadCustomers();
+      setIsModalOpen(false);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo guardar el cliente",
+        variant: "destructive"
+      });
+      console.error('Error al guardar cliente:', error);
+    }
+  };
+
+  const handleEdit = (customer: Cliente) => {
     setSelectedCustomer(customer);
     setIsModalOpen(true);
   };
 
-  const handleDelete = (customerId: number) => {
+  const handleDelete = async (customerId: number) => {
     if (confirm('¿Está seguro que desea eliminar este cliente?')) {
-      setCustomers(customers.filter(cust => cust.customer_id !== customerId));
+      try {
+        await clienteService.delete(customerId);
+        toast({
+          title: "Éxito",
+          description: "Cliente eliminado correctamente"
+        });
+        loadCustomers();
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "No se pudo eliminar el cliente",
+          variant: "destructive"
+        });
+        console.error('Error al eliminar cliente:', error);
+      }
     }
   };
 
@@ -102,6 +113,10 @@ export default function CustomersPage() {
     setSelectedCustomer(undefined);
     setIsModalOpen(true);
   };
+
+  if (isLoading) {
+    return <div className="flex justify-center items-center h-full">Cargando...</div>;
+  }
 
   return (
     <div className="space-y-6 p-6">
@@ -133,7 +148,7 @@ export default function CustomersPage() {
                 placeholder="Buscar cliente por nombre, correo, CURP o número de identificación..."
                 className="pl-8"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
               />
             </div>
           </div>
@@ -156,17 +171,17 @@ export default function CustomersPage() {
               </TableHeader>
               <TableBody>
                 {filteredCustomers.map((customer) => (
-                  <TableRow key={customer.customer_id}>
-                    <TableCell className="font-medium">{customer.customer_id}</TableCell>
-                    <TableCell>{customer.name}</TableCell>
+                  <TableRow key={customer.id_cliente}>
+                    <TableCell className="font-medium">{customer.id_cliente}</TableCell>
+                    <TableCell>{customer.nombre}</TableCell>
                     <TableCell className="font-mono">{customer.curp}</TableCell>
-                    <TableCell>{customer.identification_type}</TableCell>
-                    <TableCell>{customer.identification_number}</TableCell>
-                    <TableCell>{new Date(customer.birth_date).toLocaleDateString()}</TableCell>
-                    <TableCell>{customer.phone}</TableCell>
-                    <TableCell>{customer.email}</TableCell>
-                    <TableCell className="max-w-[200px] truncate" title={customer.address}>
-                      {customer.address}
+                    <TableCell>{customer.tipoIdentificacion?.nombre}</TableCell>
+                    <TableCell>{customer.num_identificacion}</TableCell>
+                    <TableCell>{new Date(customer.fecha_nacimiento).toLocaleDateString()}</TableCell>
+                    <TableCell>{customer.telefono}</TableCell>
+                    <TableCell>{customer.correo}</TableCell>
+                    <TableCell className="max-w-[200px] truncate" title={customer.domicilio}>
+                      {customer.domicilio}
                     </TableCell>
                     <TableCell className="text-right">
                       <Button 
@@ -181,7 +196,7 @@ export default function CustomersPage() {
                         variant="ghost" 
                         size="icon" 
                         className="text-red-600 hover:text-red-700"
-                        onClick={() => handleDelete(customer.customer_id)}
+                        onClick={() => handleDelete(customer.id_cliente)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

@@ -21,6 +21,7 @@ import { TransactionsModal } from '../../../components/modals/TransactionsModal'
 import { DocumentsModal } from '../../../components/modals/DocumentsModal';
 import { ViewDocumentsModal } from '../../../components/modals/ViewDocumentsModal';
 import transaccionService, { Transaccion } from '../../../services/transaccion.service';
+import documentoService from '../../../services/documento.service';
 import { toast } from '../../../components/ui/use-toast';
 
 interface TransactionDisplay extends Transaccion {
@@ -47,14 +48,30 @@ export default function TransactionsPage() {
   const loadTransactions = async () => {
     try {
       const data = await transaccionService.getAll();
-      const formattedTransactions: TransactionDisplay[] = data.map(trans => ({
-        ...trans,
-        clienteNombre: trans.cliente?.nombre || 'N/A',
-        vehiculoModelo: `${trans.vehiculo?.marca} ${trans.vehiculo?.modelo} ${trans.vehiculo?.anio}` || 'N/A',
-        tipoTransaccionNombre: trans.tipoTransaccion?.nombre || 'N/A',
-        documentosPendientes: true // Esto debería venir del backend
-      }));
-      setTransactions(formattedTransactions);
+      const transactionsWithDocs = await Promise.all(
+        data.map(async (trans) => {
+          try {
+            const docStatus = await documentoService.obtenerDocumentosPorTransaccion(trans.id);
+            return {
+              ...trans,
+              clienteNombre: trans.cliente?.nombre || 'N/A',
+              vehiculoModelo: `${trans.vehiculo?.marca} ${trans.vehiculo?.modelo} ${trans.vehiculo?.anio}` || 'N/A',
+              tipoTransaccionNombre: trans.tipoTransaccion?.nombre || 'N/A',
+              documentosPendientes: docStatus.documentosPendientes
+            };
+          } catch (error) {
+            console.error(`Error al obtener documentos para transacción ${trans.id}:`, error);
+            return {
+              ...trans,
+              clienteNombre: trans.cliente?.nombre || 'N/A',
+              vehiculoModelo: `${trans.vehiculo?.marca} ${trans.vehiculo?.modelo} ${trans.vehiculo?.anio}` || 'N/A',
+              tipoTransaccionNombre: trans.tipoTransaccion?.nombre || 'N/A',
+              documentosPendientes: true
+            };
+          }
+        })
+      );
+      setTransactions(transactionsWithDocs);
     } catch (error) {
       console.error('Error al cargar transacciones:', error);
       toast({
@@ -85,6 +102,9 @@ export default function TransactionsPage() {
           idCredito: transactionData.idCredito,
           idTipoTransaccion: transactionData.idTipoTransaccion
         });
+
+        const docStatus = await documentoService.obtenerDocumentosPorTransaccion(updated.id);
+        
         setTransactions(transactions.map(trans =>
           trans.id === selectedTransaction.id
             ? {
@@ -92,7 +112,8 @@ export default function TransactionsPage() {
               ...updated,
               clienteNombre: updated.cliente?.nombre || 'N/A',
               vehiculoModelo: `${updated.vehiculo?.marca} ${updated.vehiculo?.modelo} ${updated.vehiculo?.anio}` || 'N/A',
-              tipoTransaccionNombre: updated.tipoTransaccion?.nombre || 'N/A'
+              tipoTransaccionNombre: updated.tipoTransaccion?.nombre || 'N/A',
+              documentosPendientes: docStatus.documentosPendientes
             }
             : trans
         ));
@@ -109,12 +130,15 @@ export default function TransactionsPage() {
           idCredito: transactionData.idCredito,
           idTipoTransaccion: transactionData.idTipoTransaccion
         });
+
+        const docStatus = await documentoService.obtenerDocumentosPorTransaccion(created.id);
+
         const newTransaction: TransactionDisplay = {
           ...created,
           clienteNombre: created.cliente?.nombre || 'N/A',
           vehiculoModelo: `${created.vehiculo?.marca} ${created.vehiculo?.modelo} ${created.vehiculo?.anio}` || 'N/A',
           tipoTransaccionNombre: created.tipoTransaccion?.nombre || 'N/A',
-          documentosPendientes: true
+          documentosPendientes: docStatus.documentosPendientes
         };
         setTransactions([...transactions, newTransaction]);
         toast({
@@ -174,12 +198,22 @@ export default function TransactionsPage() {
     setIsViewDocumentsModalOpen(true);
   };
 
-  const handleUpdateDocumentStatus = (transactionId: number) => {
-    setTransactions(transactions.map(trans =>
-      trans.id === transactionId
-        ? { ...trans, documentosPendientes: false }
-        : trans
-    ));
+  const handleUpdateDocumentStatus = async (transactionId: number) => {
+    try {
+      const docStatus = await documentoService.obtenerDocumentosPorTransaccion(transactionId);
+      setTransactions(transactions.map(trans =>
+        trans.id === transactionId
+          ? { ...trans, documentosPendientes: docStatus.documentosPendientes }
+          : trans
+      ));
+    } catch (error) {
+      console.error('Error al actualizar estado de documentos:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el estado de los documentos",
+        variant: "destructive"
+      });
+    }
   };
 
   if (isLoading) {
