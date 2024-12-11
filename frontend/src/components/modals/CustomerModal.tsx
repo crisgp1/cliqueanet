@@ -8,10 +8,11 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { IdentificationHelper } from '../helpers/IdentificationHelper';
-import { Cliente } from '@/services/cliente.service';
+import { Cliente, CreateClienteDto } from '@/services/cliente.service';
+import { documentoService } from '@/services/documento.service';
 import { toast } from '@/components/ui/use-toast';
+import { DocumentChecklist } from '../DocumentChecklist';
 
 interface TipoIdentificacion {
   id: number;
@@ -23,7 +24,7 @@ type TipoPersona = "Física" | "Moral";
 
 interface FormData {
   nombre: string;
-  curp: string;
+  curp: string | undefined;
   idTipoIdentificacion: string;
   numIdentificacion: string;
   fechaNacimiento: string;
@@ -31,20 +32,18 @@ interface FormData {
   correo: string;
   domicilio: string;
   tipoPersona: TipoPersona;
-  representanteLegal: string;
-  razonSocial: string;
-  rfc: string;
-  fechaConstitucion: string;
-  regimenFiscal: string;
-  actaConstitutivaUrl: string;
-  poderNotarialUrl: string;
-  comprobanteDomicilioUrl: string;
+  // Campos opcionales que dependen del tipo de persona
+  representanteLegal?: string;
+  razonSocial?: string;
+  rfc?: string;
+  fechaConstitucion?: string;
+  regimenFiscal?: string;
 }
 
 interface CustomerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (cliente: Omit<Cliente, 'id'>) => void;
+  onSave: (cliente: CreateClienteDto) => Promise<Cliente>;
   customer?: Cliente;
   tiposIdentificacion: TipoIdentificacion[];
 }
@@ -70,11 +69,13 @@ export function CustomerModal({
     razonSocial: "",
     rfc: "",
     fechaConstitucion: "",
-    regimenFiscal: "",
-    actaConstitutivaUrl: "",
-    poderNotarialUrl: "",
-    comprobanteDomicilioUrl: ""
+    regimenFiscal: ""
   });
+
+  const [documents, setDocuments] = useState<Array<{ file: File; description: string }>>([]);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (customer) {
@@ -96,12 +97,8 @@ export function CustomerModal({
         fechaConstitucion: customer.fechaConstitucion
           ? new Date(customer.fechaConstitucion).toISOString().split("T")[0]
           : "",
-        regimenFiscal: customer.regimenFiscal || "",
-        actaConstitutivaUrl: customer.actaConstitutivaUrl || "",
-        poderNotarialUrl: customer.poderNotarialUrl || "",
-        comprobanteDomicilioUrl: customer.comprobanteDomicilioUrl || ""
+        regimenFiscal: customer.regimenFiscal || ""
       });
-      setDocumentsConfirmed(true);
     } else {
       setFormData({
         nombre: "",
@@ -117,19 +114,12 @@ export function CustomerModal({
         razonSocial: "",
         rfc: "",
         fechaConstitucion: "",
-        regimenFiscal: "",
-        actaConstitutivaUrl: "",
-        poderNotarialUrl: "",
-        comprobanteDomicilioUrl: ""
+        regimenFiscal: ""
       });
-      setDocumentsConfirmed(false);
     }
     setErrors({});
+    setDocuments([]);
   }, [customer, isOpen]);
-
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [documentsConfirmed, setDocumentsConfirmed] = useState(false);
-  const [isTransitioning, setIsTransitioning] = useState(false);
 
   const validateCURP = (curp: string) => {
     const curpRegex = /^[A-Z]{4}[0-9]{6}[HM][A-Z]{5}[0-9A-Z][0-9]$/;
@@ -161,13 +151,12 @@ export function CustomerModal({
           setFormData(prev => ({ 
             ...prev, 
             tipoPersona: tipoPersonaValue,
-            // Limpiar campos específicos al cambiar el tipo de persona
             rfc: "",
-            curp: "",
-            razonSocial: "",
-            representanteLegal: "",
-            fechaConstitucion: "",
-            regimenFiscal: ""
+            curp: tipoPersonaValue === "Moral" ? undefined : "",
+            razonSocial: tipoPersonaValue === "Moral" ? "" : undefined,
+            representanteLegal: tipoPersonaValue === "Moral" ? "" : undefined,
+            fechaConstitucion: tipoPersonaValue === "Moral" ? "" : undefined,
+            regimenFiscal: tipoPersonaValue === "Moral" ? "" : undefined
           }));
           setIsTransitioning(false);
         }, 150);
@@ -175,7 +164,6 @@ export function CustomerModal({
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
 
-      // Clear error when field is modified
       if (errors[name]) {
         setErrors(prev => {
           const newErrors = { ...prev };
@@ -242,6 +230,9 @@ export function CustomerModal({
       if (!formData.representanteLegal) {
         newErrors.representanteLegal = "El representante legal es requerido";
       }
+      if (documents.length === 0) {
+        newErrors.documentos = "Debe subir al menos un documento";
+      }
     } else {
       if (!formData.curp) {
         newErrors.curp = "El CURP es requerido";
@@ -251,10 +242,35 @@ export function CustomerModal({
       if (!formData.fechaNacimiento) {
         newErrors.fechaNacimiento = "La fecha de nacimiento es requerida";
       }
+      if (formData.rfc && !validateRFC(formData.rfc)) {
+        newErrors.rfc = "El formato del RFC no es válido";
+      }
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const handleDocumentsChange = (newDocuments: Array<{ file: File; description: string }>) => {
+    setDocuments(newDocuments);
+  };
+
+  const uploadDocuments = async (clienteId: number) => {
+    try {
+      const uploadPromises = documents.map(async (doc) => {
+        await documentoService.crearDocumento({
+          nombre: doc.file.name,
+          tipo: doc.file.type,
+          archivo: doc.file,
+          id_cliente: clienteId
+        });
+      });
+
+      await Promise.all(uploadPromises);
+    } catch (error) {
+      console.error('Error al subir documentos:', error);
+      throw error;
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -269,36 +285,35 @@ export function CustomerModal({
       return;
     }
 
-    if (formData.tipoPersona === "Moral" && !documentsConfirmed) {
-      toast({
-        title: "Error",
-        description: "Debe confirmar que presentará todos los documentos requeridos",
-        variant: "destructive"
-      });
-      return;
-    }
+    setIsSubmitting(true);
 
     try {
-      // Preparar los datos para enviar
-      const dataToSend = {
+      const dataToSend: CreateClienteDto = {
         ...formData,
         idTipoIdentificacion: parseInt(formData.idTipoIdentificacion),
         fechaNacimiento: new Date(formData.fechaNacimiento),
         fechaConstitucion: formData.fechaConstitucion ? new Date(formData.fechaConstitucion) : undefined,
-        // Enviar null en lugar de cadena vacía para RFC cuando es persona física
-        rfc: formData.tipoPersona === "Física" ? null : formData.rfc,
-        // Limpiar campos no necesarios según el tipo de persona
-        ...(formData.tipoPersona === "Física" ? {
-          razonSocial: null,
-          representanteLegal: null,
-          fechaConstitucion: null,
-          regimenFiscal: null
-        } : {
-          curp: null
-        })
+        // Para persona física, RFC es opcional
+        rfc: formData.tipoPersona === "Física" ? (formData.rfc || undefined) : formData.rfc,
+        // Para persona moral, estos campos son requeridos
+        razonSocial: formData.tipoPersona === "Moral" ? formData.razonSocial : undefined,
+        representanteLegal: formData.tipoPersona === "Moral" ? formData.representanteLegal : undefined,
+        regimenFiscal: formData.tipoPersona === "Moral" ? formData.regimenFiscal : undefined,
+        // Para persona moral, no debe tener CURP
+        curp: formData.tipoPersona === "Moral" ? "" : formData.curp || ""
       };
 
-      await onSave(dataToSend);
+      const savedCliente = await onSave(dataToSend);
+      
+      if (documents.length > 0) {
+        await uploadDocuments(savedCliente.id);
+      }
+
+      toast({
+        title: "Éxito",
+        description: `Cliente ${customer ? 'actualizado' : 'creado'} correctamente`,
+      });
+
       onClose();
     } catch (error: any) {
       if (error.response?.data?.errors) {
@@ -315,10 +330,12 @@ export function CustomerModal({
       } else {
         toast({
           title: "Error",
-          description: error.response?.data?.message || "Error al guardar el cliente",
+          description: error.response?.data?.message || `Error al ${customer ? 'actualizar' : 'crear'} el cliente`,
           variant: "destructive"
         });
       }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -326,7 +343,7 @@ export function CustomerModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[700px]">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>
@@ -381,7 +398,7 @@ export function CustomerModal({
                     <Input
                       id="razonSocial"
                       name="razonSocial"
-                      value={formData.razonSocial}
+                      value={formData.razonSocial || ""}
                       onChange={handleChange}
                       required={isMoral}
                       className={errors.razonSocial ? "border-red-500" : ""}
@@ -397,7 +414,7 @@ export function CustomerModal({
                     <Input
                       id="representanteLegal"
                       name="representanteLegal"
-                      value={formData.representanteLegal}
+                      value={formData.representanteLegal || ""}
                       onChange={handleChange}
                       required={isMoral}
                       className={errors.representanteLegal ? "border-red-500" : ""}
@@ -413,7 +430,7 @@ export function CustomerModal({
                     <Input
                       id="rfc"
                       name="rfc"
-                      value={formData.rfc}
+                      value={formData.rfc || ""}
                       onChange={handleChange}
                       required={isMoral}
                       maxLength={13}
@@ -430,7 +447,7 @@ export function CustomerModal({
                     <Input
                       id="regimenFiscal"
                       name="regimenFiscal"
-                      value={formData.regimenFiscal}
+                      value={formData.regimenFiscal || ""}
                       onChange={handleChange}
                       required={isMoral}
                       className={errors.regimenFiscal ? "border-red-500" : ""}
@@ -443,23 +460,41 @@ export function CustomerModal({
               </div>
 
               {!isMoral && (
-                <div className="space-y-2">
-                  <label htmlFor="curp" className="text-sm font-medium">
-                    CURP
-                  </label>
-                  <Input
-                    id="curp"
-                    name="curp"
-                    value={formData.curp}
-                    onChange={handleChange}
-                    required={!isMoral}
-                    maxLength={18}
-                    className={errors.curp ? "border-red-500" : ""}
-                  />
-                  {errors.curp && (
-                    <p className="text-red-500 text-sm">{errors.curp}</p>
-                  )}
-                </div>
+                <>
+                  <div className="space-y-2">
+                    <label htmlFor="curp" className="text-sm font-medium">
+                      CURP
+                    </label>
+                    <Input
+                      id="curp"
+                      name="curp"
+                      value={formData.curp}
+                      onChange={handleChange}
+                      required={!isMoral}
+                      maxLength={18}
+                      className={errors.curp ? "border-red-500" : ""}
+                    />
+                    {errors.curp && (
+                      <p className="text-red-500 text-sm">{errors.curp}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="rfc" className="text-sm font-medium">
+                      RFC (Opcional)
+                    </label>
+                    <Input
+                      id="rfc"
+                      name="rfc"
+                      value={formData.rfc || ""}
+                      onChange={handleChange}
+                      maxLength={13}
+                      className={errors.rfc ? "border-red-500" : ""}
+                    />
+                    {errors.rfc && (
+                      <p className="text-red-500 text-sm">{errors.rfc}</p>
+                    )}
+                  </div>
+                </>
               )}
 
               <div className="space-y-2">
@@ -581,37 +616,14 @@ export function CustomerModal({
                 )}
               </div>
 
-              <div
-                className={`transition-all duration-300 ease-in-out ${isMoral ? 'opacity-100 max-h-96' : 'opacity-0 max-h-0 overflow-hidden'
-                  } ${isTransitioning ? 'scale-95' : 'scale-100'} md:col-span-2`}
-              >
-                <div className="space-y-4">
-                  <Alert>
-                    <AlertDescription>
-                      <p className="font-medium mb-2">
-                        Documentos requeridos para Persona Moral:
-                      </p>
-                      <ul className="list-disc pl-6 text-sm space-y-1">
-                        <li>Acta Constitutiva</li>
-                        <li>Identificación del Representante Legal</li>
-                        <li>Poder Notarial</li>
-                        <li>Comprobante de Domicilio</li>
-                        <li>RFC de la Empresa</li>
-                      </ul>
-                    </AlertDescription>
-                  </Alert>
-                  <div className="mt-4">
-                    <label className="flex items-center text-sm">
-                      <input
-                        type="checkbox"
-                        checked={documentsConfirmed}
-                        onChange={(e) => setDocumentsConfirmed(e.target.checked)}
-                        className="mr-2"
-                      />
-                      Confirmo que presentaré todos los documentos requeridos
-                    </label>
-                  </div>
-                </div>
+              <div className="md:col-span-2">
+                <DocumentChecklist
+                  tipoPersona={formData.tipoPersona}
+                  onDocumentsChange={handleDocumentsChange}
+                />
+                {errors.documentos && (
+                  <p className="text-red-500 text-sm mt-2">{errors.documentos}</p>
+                )}
               </div>
             </div>
           </div>
@@ -619,8 +631,8 @@ export function CustomerModal({
             <Button type="button" variant="outline" onClick={onClose}>
               Cancelar
             </Button>
-            <Button type="submit">
-              {customer ? "Guardar Cambios" : "Crear Cliente"}
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Guardando..." : customer ? "Guardar Cambios" : "Crear Cliente"}
             </Button>
           </DialogFooter>
         </form>

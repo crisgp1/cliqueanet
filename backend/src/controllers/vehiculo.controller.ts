@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { Vehiculo } from '../models/vehiculo.model';
+import { Op } from 'sequelize';
 
 export class VehiculoController {
     
@@ -98,6 +99,99 @@ export class VehiculoController {
             });
         } catch (error) {
             console.error('Error al obtener vehículo:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Error al obtener el vehículo',
+                error: error instanceof Error ? error.message : 'Error desconocido'
+            });
+        }
+    }
+
+    // Obtener vehículo por número de serie
+    public async getByNumSerie(req: Request, res: Response): Promise<void> {
+        try {
+            const { numSerie } = req.query;
+            const vehiculo = await Vehiculo.findOne({
+                where: { numSerie }
+            });
+
+            if (!vehiculo) {
+                res.status(404).json({
+                    success: false,
+                    message: 'Vehículo no encontrado'
+                });
+                return;
+            }
+
+            res.status(200).json({
+                success: true,
+                data: vehiculo,
+                message: 'Vehículo recuperado exitosamente'
+            });
+        } catch (error) {
+            console.error('Error al obtener vehículo por número de serie:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Error al obtener el vehículo',
+                error: error instanceof Error ? error.message : 'Error desconocido'
+            });
+        }
+    }
+
+    // Obtener vehículo por placas
+    public async getByPlacas(req: Request, res: Response): Promise<void> {
+        try {
+            const { placas } = req.query;
+            const vehiculo = await Vehiculo.findOne({
+                where: { placas }
+            });
+
+            if (!vehiculo) {
+                res.status(404).json({
+                    success: false,
+                    message: 'Vehículo no encontrado'
+                });
+                return;
+            }
+
+            res.status(200).json({
+                success: true,
+                data: vehiculo,
+                message: 'Vehículo recuperado exitosamente'
+            });
+        } catch (error) {
+            console.error('Error al obtener vehículo por placas:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Error al obtener el vehículo',
+                error: error instanceof Error ? error.message : 'Error desconocido'
+            });
+        }
+    }
+
+    // Obtener vehículo por número de motor
+    public async getByNumMotor(req: Request, res: Response): Promise<void> {
+        try {
+            const { numMotor } = req.query;
+            const vehiculo = await Vehiculo.findOne({
+                where: { numMotor }
+            });
+
+            if (!vehiculo) {
+                res.status(404).json({
+                    success: false,
+                    message: 'Vehículo no encontrado'
+                });
+                return;
+            }
+
+            res.status(200).json({
+                success: true,
+                data: vehiculo,
+                message: 'Vehículo recuperado exitosamente'
+            });
+        } catch (error) {
+            console.error('Error al obtener vehículo por número de motor:', error);
             res.status(500).json({
                 success: false,
                 message: 'Error al obtener el vehículo',

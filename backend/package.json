@@ -21,6 +21,7 @@
     "@types/express": "^5.0.0",
     "@types/geoip-lite": "^1.4.4",
     "@types/jsonwebtoken": "^9.0.5",
+    "@types/multer": "^1.4.12",
     "@types/pg": "^8.11.10",
     "@types/sequelize": "^4.28.20",
     "@types/ua-parser-js": "^0.7.39",
@@ -30,17 +31,19 @@
     "express": "^4.21.1",
     "geoip-lite": "^1.4.10",
     "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
     "pg": "^8.13.1",
     "sequelize-typescript": "^2.1.6",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.7.2",
     "ua-parser-js": "^2.0.0"
   },
   "devDependencies": {
-    "@types/node": "^20.11.16",
+    "@types/node": "^20.17.10",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
     "eslint": "^8.56.0",
-    "rimraf": "^5.0.5"
+    "rimraf": "^5.0.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2"
   }
 }

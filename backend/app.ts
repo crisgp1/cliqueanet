@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
 import { verificarToken } from './src/middlewares/auth.middleware';
 import usuarioRoutes from './src/routes/usuario.routes';
 import citaRoutes from './src/routes/cita.routes';
@@ -101,10 +102,14 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Aplicar verificación de token a todas las rutas excepto /api/usuarios/login
+// Configurar el directorio de uploads como estático
+const uploadsDir = path.join(process.cwd(), 'uploads');
+app.use('/uploads', express.static(uploadsDir));
+
+// Aplicar verificación de token a todas las rutas excepto /api/usuarios/login y /uploads
 app.use((req, res, next) => {
-  // Excluir la ruta de login de la verificación de token
-  if (req.path === '/api/usuarios/login') {
+  // Excluir la ruta de login y uploads de la verificación de token
+  if (req.path === '/api/usuarios/login' || req.path.startsWith('/uploads/')) {
     return next();
   }
   verificarToken(req, res, next);

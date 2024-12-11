@@ -81,16 +81,31 @@ export class DocumentoController {
     // Crear un nuevo documento
     public async crearDocumento(req: Request, res: Response): Promise<void> {
         try {
+            const file = req.file;
+            if (!file) {
+                res.status(400).json({
+                    success: false,
+                    message: 'No se ha proporcionado ningún archivo'
+                });
+                return;
+            }
+    
+            const fileUrl = `/uploads/${file.filename}`;
+            
             const nuevoDocumento = await Documento.create({
                 ...req.body,
-                estado: 'pendiente'
+                url: fileUrl,
+                estado: 'pendiente',
+                fecha_subida: new Date()
             });
+    
             res.status(201).json({
                 success: true,
                 data: nuevoDocumento,
                 message: 'Documento creado exitosamente'
             });
         } catch (error) {
+            console.error('Error al crear documento:', error);
             res.status(500).json({
                 success: false,
                 message: 'Error al crear el documento',

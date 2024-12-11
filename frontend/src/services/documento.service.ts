@@ -47,10 +47,31 @@ export interface GenerarPdfResponse {
 class DocumentoService {
     private baseUrl = `${API_URL}/api/documentos`;
 
+    // Método auxiliar para convertir URLs relativas en absolutas
+    private getFullUrl(url: string): string {
+        if (url.startsWith('http')) {
+            return url;
+        }
+        return `${API_URL}${url}`;
+    }
+
+    // Método auxiliar para procesar documentos y convertir URLs
+    private processDocumento(documento: Documento): Documento {
+        return {
+            ...documento,
+            url: this.getFullUrl(documento.url)
+        };
+    }
+
+    // Método auxiliar para procesar arrays de documentos
+    private processDocumentos(documentos: Documento[]): Documento[] {
+        return documentos.map(doc => this.processDocumento(doc));
+    }
+
     async obtenerDocumentos(): Promise<Documento[]> {
         try {
             const response = await axios.get<{ data: Documento[] }>(this.baseUrl);
-            return response.data.data;
+            return this.processDocumentos(response.data.data);
         } catch (error) {
             console.error('Error al obtener documentos:', error);
             throw error;
@@ -60,7 +81,7 @@ class DocumentoService {
     async obtenerDocumentoPorId(id: number): Promise<Documento> {
         try {
             const response = await axios.get<{ data: Documento }>(`${this.baseUrl}/${id}`);
-            return response.data.data;
+            return this.processDocumento(response.data.data);
         } catch (error) {
             console.error(`Error al obtener documento ${id}:`, error);
             throw error;
@@ -72,7 +93,10 @@ class DocumentoService {
             const response = await axios.get<{ data: DocumentosResponse }>(
                 `${this.baseUrl}/empleado/${idEmpleado}`
             );
-            return response.data.data;
+            return {
+                ...response.data.data,
+                documentos: this.processDocumentos(response.data.data.documentos)
+            };
         } catch (error) {
             console.error(`Error al obtener documentos del empleado ${idEmpleado}:`, error);
             throw error;
@@ -84,7 +108,10 @@ class DocumentoService {
             const response = await axios.get<{ data: DocumentosResponse }>(
                 `${this.baseUrl}/transaccion/${idTransaccion}`
             );
-            return response.data.data;
+            return {
+                ...response.data.data,
+                documentos: this.processDocumentos(response.data.data.documentos)
+            };
         } catch (error) {
             console.error(`Error al obtener documentos de la transacción ${idTransaccion}:`, error);
             throw error;
@@ -107,7 +134,7 @@ class DocumentoService {
                     'Content-Type': 'multipart/form-data'
                 }
             });
-            return response.data.data;
+            return this.processDocumento(response.data.data);
         } catch (error) {
             console.error('Error al crear documento:', error);
             throw error;
@@ -127,7 +154,7 @@ class DocumentoService {
                     'Content-Type': 'multipart/form-data'
                 }
             });
-            return response.data.data;
+            return this.processDocumento(response.data.data);
         } catch (error) {
             console.error(`Error al actualizar documento ${id}:`, error);
             throw error;
@@ -137,7 +164,7 @@ class DocumentoService {
     async aprobarDocumento(id: number): Promise<Documento> {
         try {
             const response = await axios.post<{ data: Documento }>(`${this.baseUrl}/${id}/aprobar`);
-            return response.data.data;
+            return this.processDocumento(response.data.data);
         } catch (error) {
             console.error(`Error al aprobar documento ${id}:`, error);
             throw error;
@@ -147,7 +174,7 @@ class DocumentoService {
     async rechazarDocumento(id: number): Promise<Documento> {
         try {
             const response = await axios.post<{ data: Documento }>(`${this.baseUrl}/${id}/rechazar`);
-            return response.data.data;
+            return this.processDocumento(response.data.data);
         } catch (error) {
             console.error(`Error al rechazar documento ${id}:`, error);
             throw error;
@@ -168,7 +195,10 @@ class DocumentoService {
             const response = await axios.post<{ data: GenerarPdfResponse }>(
                 `${this.baseUrl}/generar-compraventa/${idTransaccion}`
             );
-            return response.data.data;
+            return {
+                ...response.data.data,
+                url: this.getFullUrl(response.data.data.url)
+            };
         } catch (error) {
             console.error(`Error al generar PDF de compraventa para transacción ${idTransaccion}:`, error);
             throw error;
@@ -192,7 +222,7 @@ class DocumentoService {
                     }
                 }
             );
-            return response.data.data;
+            return this.processDocumentos(response.data.data);
         } catch (error) {
             console.error(`Error al escanear documentos para transacción ${idTransaccion}:`, error);
             throw error;

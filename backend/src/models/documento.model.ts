@@ -1,3 +1,5 @@
+// documento.model.ts
+
 import { Table, Column, Model, DataType, ForeignKey, BelongsTo } from 'sequelize-typescript';
 import { Op } from 'sequelize';
 import { Transaccion } from './transaccion.model';
@@ -168,7 +170,11 @@ export class Documento extends Model {
   @Column({
     type: DataType.INTEGER,
     allowNull: true,
-    field: 'id_transaccion'
+    field: 'id_transaccion',
+    references: {
+      model: 'transacciones',
+      key: 'id_transaccion'
+    }
   })
   idTransaccion?: number;
 
@@ -183,7 +189,6 @@ export class Documento extends Model {
     type: DataType.STRING(255),
     allowNull: false,
     validate: {
-      isUrl: true,
       notEmpty: true
     }
   })
@@ -330,7 +335,7 @@ export class Documento extends Model {
     const where: any = { tipo_documento: tipo };
 
     if (params.idCliente) where.id_cliente = params.idCliente;
-    if (params.idVehiculo) where.id_vehiculo = params.idVehiculo;
+    if (params.idVehiculo) where.idVehiculo = params.idVehiculo;
     if (params.idTransaccion) {
       where.id_transaccion = params.idTransaccion;
       if (params.fechaTransaccion) where.fecha_transaccion = params.fechaTransaccion;

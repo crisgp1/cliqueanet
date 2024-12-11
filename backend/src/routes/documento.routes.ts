@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { verificarToken, verificarRol } from '../middlewares/auth.middleware';
 import { RolUsuario } from '../types';
 import { documentoController } from '../controllers/documento.controller';
+import { upload } from '../middlewares/upload.middleware';
 
 const router = Router();
 
@@ -30,7 +31,11 @@ router.get('/empleado/:idEmpleado', autenticarYVerificarRol, documentoController
 router.get('/:id', autenticarYVerificarRol, documentoController.obtenerDocumentoPorId.bind(documentoController));
 
 // Crear un nuevo documento
-router.post('/', autenticarYVerificarRol, documentoController.crearDocumento.bind(documentoController));
+router.post('/', 
+    autenticarYVerificarRol, 
+    upload.single('file'), 
+    documentoController.crearDocumento.bind(documentoController)
+  );
 
 // Actualizar información de un documento
 router.put('/:id', autenticarYVerificarRol, documentoController.actualizarDocumento.bind(documentoController));

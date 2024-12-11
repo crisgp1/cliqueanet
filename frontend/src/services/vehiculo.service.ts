@@ -45,11 +45,31 @@ export interface UpdateVehiculoDto {
     comentarios_internos?: string;
 }
 
+// Función para transformar de snake_case a camelCase
+const toBackendFormat = (data: any) => {
+    const transformed: any = {};
+    Object.entries(data).forEach(([key, value]) => {
+        const newKey = key.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+        transformed[newKey] = value;
+    });
+    return transformed;
+};
+
+// Función para transformar de camelCase a snake_case
+const toFrontendFormat = (data: any) => {
+    const transformed: any = {};
+    Object.entries(data).forEach(([key, value]) => {
+        const newKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+        transformed[newKey] = value;
+    });
+    return transformed;
+};
+
 class VehiculoService {
     async getAll(): Promise<Vehiculo[]> {
         try {
-            const response = await axios.get<Vehiculo[]>(`${API_URL}/vehiculos`);
-            return response.data;
+            const response = await axios.get<any[]>(`${API_URL}/vehiculos`);
+            return response.data.map(vehiculo => toFrontendFormat(vehiculo));
         } catch (error) {
             console.error('Error al obtener vehículos:', error);
             throw error;
@@ -58,8 +78,8 @@ class VehiculoService {
 
     async getById(id: number): Promise<Vehiculo> {
         try {
-            const response = await axios.get<Vehiculo>(`${API_URL}/vehiculos/${id}`);
-            return response.data;
+            const response = await axios.get<any>(`${API_URL}/vehiculos/${id}`);
+            return toFrontendFormat(response.data);
         } catch (error) {
             console.error(`Error al obtener vehículo ${id}:`, error);
             throw error;
@@ -68,8 +88,11 @@ class VehiculoService {
 
     async create(vehiculo: CreateVehiculoDto): Promise<Vehiculo> {
         try {
-            const response = await axios.post<Vehiculo>(`${API_URL}/vehiculos`, vehiculo);
-            return response.data;
+            const response = await axios.post<any>(
+                `${API_URL}/vehiculos`,
+                toBackendFormat(vehiculo)
+            );
+            return toFrontendFormat(response.data);
         } catch (error) {
             console.error('Error al crear vehículo:', error);
             throw error;
@@ -78,8 +101,11 @@ class VehiculoService {
 
     async update(id: number, vehiculo: UpdateVehiculoDto): Promise<Vehiculo> {
         try {
-            const response = await axios.put<Vehiculo>(`${API_URL}/vehiculos/${id}`, vehiculo);
-            return response.data;
+            const response = await axios.put<any>(
+                `${API_URL}/vehiculos/${id}`,
+                toBackendFormat(vehiculo)
+            );
+            return toFrontendFormat(response.data);
         } catch (error) {
             console.error(`Error al actualizar vehículo ${id}:`, error);
             throw error;
@@ -97,10 +123,10 @@ class VehiculoService {
 
     async getByNumSerie(numSerie: string): Promise<Vehiculo | null> {
         try {
-            const response = await axios.get<Vehiculo[]>(`${API_URL}/vehiculos`, {
-                params: { numSerie }
+            const response = await axios.get<any[]>(`${API_URL}/vehiculos`, {
+                params: { numSerie: toBackendFormat({ num_serie: numSerie }).numSerie }
             });
-            return response.data[0] || null;
+            return response.data[0] ? toFrontendFormat(response.data[0]) : null;
         } catch (error) {
             console.error(`Error al buscar vehículo por número de serie ${numSerie}:`, error);
             throw error;
@@ -109,10 +135,10 @@ class VehiculoService {
 
     async getByPlacas(placas: string): Promise<Vehiculo | null> {
         try {
-            const response = await axios.get<Vehiculo[]>(`${API_URL}/vehiculos`, {
+            const response = await axios.get<any[]>(`${API_URL}/vehiculos`, {
                 params: { placas }
             });
-            return response.data[0] || null;
+            return response.data[0] ? toFrontendFormat(response.data[0]) : null;
         } catch (error) {
             console.error(`Error al buscar vehículo por placas ${placas}:`, error);
             throw error;
@@ -121,10 +147,10 @@ class VehiculoService {
 
     async getByNumMotor(numMotor: string): Promise<Vehiculo | null> {
         try {
-            const response = await axios.get<Vehiculo[]>(`${API_URL}/vehiculos`, {
-                params: { numMotor }
+            const response = await axios.get<any[]>(`${API_URL}/vehiculos`, {
+                params: { numMotor: toBackendFormat({ num_motor: numMotor }).numMotor }
             });
-            return response.data[0] || null;
+            return response.data[0] ? toFrontendFormat(response.data[0]) : null;
         } catch (error) {
             console.error(`Error al buscar vehículo por número de motor ${numMotor}:`, error);
             throw error;
