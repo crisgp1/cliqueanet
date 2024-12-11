@@ -12,6 +12,15 @@ export interface Cliente {
   telefono: string;
   correo: string;
   domicilio: string;
+  tipoPersona: 'Física' | 'Moral';
+  razonSocial?: string;
+  representanteLegal?: string;
+  rfc?: string;
+  fechaConstitucion?: Date;
+  regimenFiscal?: string;
+  actaConstitutivaUrl?: string;
+  poderNotarialUrl?: string;
+  comprobanteDomicilioUrl?: string;
   tipoIdentificacion?: {
     id: number;
     nombre: string;
@@ -28,6 +37,15 @@ export interface CreateClienteDto {
   telefono: string;
   correo: string;
   domicilio: string;
+  tipoPersona: 'Física' | 'Moral';
+  razonSocial?: string;
+  representanteLegal?: string;
+  rfc?: string;
+  fechaConstitucion?: Date;
+  regimenFiscal?: string;
+  actaConstitutivaUrl?: string;
+  poderNotarialUrl?: string;
+  comprobanteDomicilioUrl?: string;
 }
 
 export interface UpdateClienteDto {
@@ -39,6 +57,15 @@ export interface UpdateClienteDto {
   telefono?: string;
   correo?: string;
   domicilio?: string;
+  tipoPersona?: 'Física' | 'Moral';
+  razonSocial?: string;
+  representanteLegal?: string;
+  rfc?: string;
+  fechaConstitucion?: Date;
+  regimenFiscal?: string;
+  actaConstitutivaUrl?: string;
+  poderNotarialUrl?: string;
+  comprobanteDomicilioUrl?: string;
 }
 
 class ClienteService {

@@ -46,32 +46,33 @@ export function BaseModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent 
         className={`
-          max-w-[95vw] w-full 
           ${maxWidthClasses[maxWidth]}
-          max-h-[90vh] 
-          overflow-hidden 
-          flex 
-          flex-col
-          relative
           ${className}
+          grid
+          gap-4
+          bg-background
+          p-0
+          shadow-lg
+          duration-200
+          sm:rounded-lg
         `}
       >
         {isLoading && <LoaderOverlay />}
         
         {showHeader && (
-          <DialogHeader className="px-6 py-4 border-b">
+          <DialogHeader className="sticky top-0 z-50 px-6 py-4 border-b bg-background">
             <DialogTitle>
               {title}
             </DialogTitle>
           </DialogHeader>
         )}
 
-        <div className="flex-1 overflow-y-auto px-6 py-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+        <div className="px-6 py-4 overflow-y-auto max-h-[calc(90vh-8rem)] scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
           {children}
         </div>
 
         {showFooter && footer && (
-          <DialogFooter className="px-6 py-4 border-t">
+          <DialogFooter className="sticky bottom-0 z-50 px-6 py-4 border-t bg-background">
             {footer}
           </DialogFooter>
         )}
@@ -79,32 +80,3 @@ export function BaseModal({
     </Dialog>
   );
 }
-
-// Componente de ejemplo de uso:
-/*
-export function ExampleModal({ isOpen, onClose }) {
-  return (
-    <BaseModal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Título del Modal"
-      maxWidth="md"
-      isLoading={false} // Controla el estado de carga
-      footer={
-        <>
-          <Button variant="outline" onClick={onClose}>
-            Cancelar
-          </Button>
-          <Button type="submit">
-            Guardar
-          </Button>
-        </>
-      }
-    >
-      <div className="space-y-4">
-        <p>Contenido del modal...</p>
-      </div>
-    </BaseModal>
-  );
-}
-*/

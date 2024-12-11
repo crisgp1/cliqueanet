@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { TipoTransaccion, ApiResponse } from '../types';
 
-const API_URL = 'http://localhost:3001/api';
+const API_URL = 'http://localhost:3001';
 
 class TipoTransaccionService {
   private baseUrl = `${API_URL}/catalogs/tipo-transaccion`;

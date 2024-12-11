@@ -1,4 +1,6 @@
-import { Table, Column, Model, DataType } from 'sequelize-typescript';
+import { Table, Column, Model, DataType, ForeignKey, BelongsTo, HasMany } from 'sequelize-typescript';
+import { Cliente } from './cliente.model';
+import { Transaccion } from './transaccion.model';
 
 @Table({
   tableName: 'creditos',
@@ -13,10 +15,15 @@ export class Credito extends Model {
   })
   id!: number;
 
+  @ForeignKey(() => Cliente)
   @Column({
     type: DataType.INTEGER,
     allowNull: false,
-    field: 'id_cliente'
+    field: 'id_cliente',
+    references: {
+      model: 'clientes',
+      key: 'id_cliente'
+    }
   })
   idCliente!: number;
 
@@ -31,4 +38,17 @@ export class Credito extends Model {
     allowNull: true
   })
   comentarios?: string;
+
+  // Relaciones
+  @BelongsTo(() => Cliente, {
+    foreignKey: 'id_cliente'
+  })
+  cliente?: Cliente;
+
+  @HasMany(() => Transaccion, {
+    foreignKey: 'id_credito'
+  })
+  transacciones?: Transaccion[];
 }
+
+export default Credito;

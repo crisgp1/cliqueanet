@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { LoginResponse, LoginCredentials, LoginHistory } from '../types';
 import { ipService } from './ip.service';
- 
-const API_URL = 'http://localhost:3001/api';
+
+const API_URL = 'http://localhost:3001';
 
 class AuthService {
   async login(credentials: LoginCredentials): Promise<LoginResponse> {
@@ -11,7 +11,6 @@ class AuthService {
       const ip_address = await ipService.getClientIp();
       console.log('✅ IP obtenida:', ip_address);
 
-      // Add IP address and user agent to credentials
       const enrichedCredentials = {
         ...credentials,
         user_agent: window.navigator.userAgent,
@@ -23,33 +22,42 @@ class AuthService {
         password: '[REDACTED]'
       });
 
-      const response = await axios.post<LoginResponse>(`${API_URL}/usuarios/login`, enrichedCredentials);
-      
+      const response = await axios.post<LoginResponse>(
+        `${API_URL}/api/usuarios/login`, 
+        enrichedCredentials
+      );
+
       if (response.data.success && response.data.data) {
         // Store user data and token in localStorage
         localStorage.setItem('user', JSON.stringify(response.data.data.usuario));
         localStorage.setItem('token', response.data.data.token);
         
-        // Store last login info if available
         if (response.data.data.lastLogin) {
           localStorage.setItem('lastLogin', JSON.stringify(response.data.data.lastLogin));
         }
         
-        // Set default Authorization header for future requests
         axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.data.token}`;
       }
+
       return response.data;
     } catch (error: unknown) {
-      // Type guard for axios error
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { data: LoginResponse } };
-        if (axiosError.response?.data) {
-          return axiosError.response.data;
+      if (axios.isAxiosError(error)) {
+        // Si es un error de respuesta del servidor
+        if (error.response?.data) {
+          return error.response.data as LoginResponse;
         }
+        
+        // Si es un error de red o tiempo de espera
+        return {
+          success: false,
+          message: error.message || 'Error de conexión con el servidor'
+        };
       }
+
+      // Para otros tipos de errores
       return {
         success: false,
-        message: 'Error de conexión con el servidor'
+        message: 'Error inesperado durante el inicio de sesión'
       };
     }
   }
@@ -58,9 +66,7 @@ class AuthService {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     localStorage.removeItem('lastLogin');
-    // Remove Authorization header
     delete axios.defaults.headers.common['Authorization'];
-    // Clear IP cache
     ipService.clearCache();
   }
 
@@ -89,18 +95,18 @@ class AuthService {
   }
 
   setupAxiosInterceptors(): void {
-    // Add token to requests if it exists
     const token = this.getToken();
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     }
 
-    // Handle 401 responses
     axios.interceptors.response.use(
       response => response,
       error => {
-        if (error.response?.status === 401) {
+        // Solo redirigir si no estamos ya en la página de login
+        if (error.response?.status === 401 && window.location.pathname !== '/login') {
           this.logout();
+          // Usar history.push en lugar de window.location para evitar recargas
           window.location.href = '/login';
         }
         return Promise.reject(error);
@@ -110,6 +116,4 @@ class AuthService {
 }
 
 export const authService = new AuthService();
-
-// Setup interceptors on service initialization
 authService.setupAxiosInterceptors();

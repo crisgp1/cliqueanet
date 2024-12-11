@@ -6,20 +6,21 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "../../../components/ui/table";
+} from "@/components/ui/table";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "../../../components/ui/card";
-import { Button } from "../../../components/ui/button";
-import { Input } from "../../../components/ui/input";
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Search, Plus, Pencil, Trash2 } from 'lucide-react';
-import { CustomerModal } from '../../../components/modals/CustomerModal';
-import clienteService, { Cliente } from '../../../services/cliente.service';
-import { toast } from '../../../components/ui/use-toast';
+import { CustomerModal } from '@/components/modals/CustomerModal';
+import clienteService, { Cliente } from '@/services/cliente.service';
+import tipoIdentificacionService, { TipoIdentificacion } from '@/services/tipo-identificacion.service';
+import { toast } from '@/components/ui/use-toast';
 
 export default function CustomersPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -27,9 +28,11 @@ export default function CustomersPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Cliente | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
+  const [tiposIdentificacion, setTiposIdentificacion] = useState<TipoIdentificacion[]>([]);
 
   useEffect(() => {
     loadCustomers();
+    loadTiposIdentificacion();
   }, []);
 
   const loadCustomers = async () => {
@@ -48,18 +51,34 @@ export default function CustomersPage() {
     }
   };
 
+  const loadTiposIdentificacion = async () => {
+    try {
+      const data = await tipoIdentificacionService.getAll();
+      setTiposIdentificacion(data);
+    } catch (error) {
+      console.error('Error al cargar tipos de identificación:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los tipos de identificación",
+        variant: "destructive"
+      });
+    }
+  };
+
   const filteredCustomers = customers.filter(customer =>
     customer.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
     customer.correo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.curp.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.num_identificacion.toLowerCase().includes(searchTerm.toLowerCase())
+    (customer.curp && customer.curp.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    customer.numIdentificacion.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (customer.rfc && customer.rfc.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (customer.razonSocial && customer.razonSocial.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const handleSave = async (customerData: Omit<Cliente, 'id_cliente'>) => {
+  const handleSave = async (customerData: Omit<Cliente, 'id'>) => {
     try {
       if (selectedCustomer) {
         // Editar cliente existente
-        await clienteService.update(selectedCustomer.id_cliente, customerData);
+        await clienteService.update(selectedCustomer.id, customerData);
         toast({
           title: "Éxito",
           description: "Cliente actualizado correctamente"
@@ -145,7 +164,7 @@ export default function CustomersPage() {
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
               <Input
-                placeholder="Buscar cliente por nombre, correo, CURP o número de identificación..."
+                placeholder="Buscar por nombre, correo, CURP, RFC, razón social o número de identificación..."
                 className="pl-8"
                 value={searchTerm}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
@@ -158,11 +177,10 @@ export default function CustomersPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>ID</TableHead>
+                  <TableHead>Tipo</TableHead>
                   <TableHead>Nombre</TableHead>
-                  <TableHead>CURP</TableHead>
-                  <TableHead>Tipo de Identificación</TableHead>
-                  <TableHead>Número de Identificación</TableHead>
-                  <TableHead>Fecha Nacimiento</TableHead>
+                  <TableHead>Identificación</TableHead>
+                  <TableHead>RFC/CURP</TableHead>
                   <TableHead>Teléfono</TableHead>
                   <TableHead>Correo</TableHead>
                   <TableHead>Domicilio</TableHead>
@@ -171,13 +189,28 @@ export default function CustomersPage() {
               </TableHeader>
               <TableBody>
                 {filteredCustomers.map((customer) => (
-                  <TableRow key={customer.id_cliente}>
-                    <TableCell className="font-medium">{customer.id_cliente}</TableCell>
-                    <TableCell>{customer.nombre}</TableCell>
-                    <TableCell className="font-mono">{customer.curp}</TableCell>
-                    <TableCell>{customer.tipoIdentificacion?.nombre}</TableCell>
-                    <TableCell>{customer.num_identificacion}</TableCell>
-                    <TableCell>{new Date(customer.fecha_nacimiento).toLocaleDateString()}</TableCell>
+                  <TableRow key={customer.id}>
+                    <TableCell className="font-medium">{customer.id}</TableCell>
+                    <TableCell>{customer.tipoPersona}</TableCell>
+                    <TableCell>
+                      {customer.tipoPersona === "Moral" ? (
+                        <div>
+                          <div>{customer.nombre}</div>
+                          <div className="text-sm text-gray-500">{customer.razonSocial}</div>
+                        </div>
+                      ) : (
+                        customer.nombre
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <div className="text-sm text-gray-500">{customer.tipoIdentificacion?.nombre}</div>
+                        <div>{customer.numIdentificacion}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-mono">
+                      {customer.tipoPersona === "Moral" ? customer.rfc : customer.curp}
+                    </TableCell>
                     <TableCell>{customer.telefono}</TableCell>
                     <TableCell>{customer.correo}</TableCell>
                     <TableCell className="max-w-[200px] truncate" title={customer.domicilio}>
@@ -196,7 +229,7 @@ export default function CustomersPage() {
                         variant="ghost" 
                         size="icon" 
                         className="text-red-600 hover:text-red-700"
-                        onClick={() => handleDelete(customer.id_cliente)}
+                        onClick={() => handleDelete(customer.id)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -217,6 +250,7 @@ export default function CustomersPage() {
         }}
         onSave={handleSave}
         customer={selectedCustomer}
+        tiposIdentificacion={tiposIdentificacion}
       />
     </div>
   );

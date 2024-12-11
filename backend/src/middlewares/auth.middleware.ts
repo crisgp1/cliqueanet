@@ -7,7 +7,7 @@ declare global {
   namespace Express {
     interface Request {
       usuario?: {
-        id_empleado: number;
+        id_usuario: number;
         rol: RolUsuario;
       };
     }
@@ -26,7 +26,7 @@ export const verificarToken = (req: Request, res: Response, next: NextFunction) 
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret') as {
-      id_empleado: number;
+      id_usuario: number;
       rol: RolUsuario;
     };
 
@@ -60,7 +60,7 @@ export const verificarRol = (rolesPermitidos: RolUsuario[]) => {
   };
 };
 
-export const generarToken = (payload: { id_empleado: number; rol: RolUsuario }): string => {
+export const generarToken = (payload: { id_usuario: number; rol: RolUsuario }): string => {
   return jwt.sign(
     payload,
     process.env.JWT_SECRET || 'default_secret',

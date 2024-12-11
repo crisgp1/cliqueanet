@@ -20,6 +20,36 @@ export class DocumentoController {
         }
     }
 
+    // Obtener documentos por empleado
+    public async obtenerDocumentosPorEmpleado(req: Request, res: Response): Promise<void> {
+        try {
+            const { idEmpleado } = req.params;
+            const documentos = await Documento.findAll({
+                where: {
+                    idEmpleado: idEmpleado
+                }
+            });
+            
+            // Verificar si hay documentos pendientes
+            const documentosPendientes = documentos.some(doc => doc.estado === 'pendiente');
+            
+            res.status(200).json({
+                success: true,
+                data: {
+                    documentosPendientes,
+                    documentos
+                },
+                message: 'Documentos del empleado obtenidos exitosamente'
+            });
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                message: 'Error al obtener los documentos del empleado',
+                error: error
+            });
+        }
+    }
+
     // Obtener un documento por ID
     public async obtenerDocumentoPorId(req: Request, res: Response): Promise<void> {
         try {
@@ -51,7 +81,10 @@ export class DocumentoController {
     // Crear un nuevo documento
     public async crearDocumento(req: Request, res: Response): Promise<void> {
         try {
-            const nuevoDocumento = await Documento.create(req.body);
+            const nuevoDocumento = await Documento.create({
+                ...req.body,
+                estado: 'pendiente'
+            });
             res.status(201).json({
                 success: true,
                 data: nuevoDocumento,
@@ -91,6 +124,82 @@ export class DocumentoController {
             res.status(500).json({
                 success: false,
                 message: 'Error al actualizar el documento',
+                error: error
+            });
+        }
+    }
+
+    // Aprobar un documento
+    public async aprobarDocumento(req: Request, res: Response): Promise<void> {
+        try {
+            const { id } = req.params;
+            const documento = await Documento.findByPk(id);
+            
+            if (!documento) {
+                res.status(404).json({
+                    success: false,
+                    message: 'Documento no encontrado'
+                });
+                return;
+            }
+
+            if (documento.estado !== 'pendiente') {
+                res.status(400).json({
+                    success: false,
+                    message: 'El documento no está en estado pendiente'
+                });
+                return;
+            }
+
+            await documento.update({ estado: 'aprobado' });
+            
+            res.status(200).json({
+                success: true,
+                data: documento,
+                message: 'Documento aprobado exitosamente'
+            });
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                message: 'Error al aprobar el documento',
+                error: error
+            });
+        }
+    }
+
+    // Rechazar un documento
+    public async rechazarDocumento(req: Request, res: Response): Promise<void> {
+        try {
+            const { id } = req.params;
+            const documento = await Documento.findByPk(id);
+            
+            if (!documento) {
+                res.status(404).json({
+                    success: false,
+                    message: 'Documento no encontrado'
+                });
+                return;
+            }
+
+            if (documento.estado !== 'pendiente') {
+                res.status(400).json({
+                    success: false,
+                    message: 'El documento no está en estado pendiente'
+                });
+                return;
+            }
+
+            await documento.update({ estado: 'rechazado' });
+            
+            res.status(200).json({
+                success: true,
+                data: documento,
+                message: 'Documento rechazado exitosamente'
+            });
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                message: 'Error al rechazar el documento',
                 error: error
             });
         }

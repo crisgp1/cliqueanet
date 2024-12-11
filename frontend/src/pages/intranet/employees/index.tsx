@@ -16,10 +16,10 @@ import {
 } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
-import { Search, Plus, Pencil, Trash2, Eye } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, Eye, UserRoundCheck, UserRoundX } from 'lucide-react';
 import { EmployeeModal } from '../../../components/modals/EmployeeModal';
 import { ViewEmployeeDocumentsModal } from '../../../components/modals/ViewEmployeeDocumentsModal';
-import { empleadoService, IEmpleado } from '../../../services/empleado.service';
+import { empleadoService, IEmpleado, IUsuarioEmpleado } from '../../../services/empleado.service';
 import { documentoService, DocumentosResponse } from '../../../services/documento.service';
 import { toast } from '../../../components/ui/use-toast';
 
@@ -113,13 +113,14 @@ export default function EmployeesPage() {
 
   const filteredEmployees = employees.filter(employee =>
     employee.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.correo.toLowerCase().includes(searchTerm.toLowerCase())
+    employee.usuario?.correo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    employee.num_empleado?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleSave = async (employeeData: IEmpleado) => {
+  const handleSave = async (data: { usuario: IUsuarioEmpleado; empleado: Omit<IEmpleado, 'id_empleado' | 'usuario'> }) => {
     try {
       if (selectedEmployee?.id_empleado) {
-        const updatedEmployee = await empleadoService.actualizarEmpleado(selectedEmployee.id_empleado, employeeData);
+        const updatedEmployee = await empleadoService.actualizarEmpleado(selectedEmployee.id_empleado, data);
         setEmployees(employees.map(emp => 
           emp.id_empleado === selectedEmployee.id_empleado 
             ? { ...updatedEmployee, documentosInfo: emp.documentosInfo }
@@ -130,7 +131,7 @@ export default function EmployeesPage() {
           description: "Empleado actualizado correctamente"
         });
       } else {
-        const newEmployee = await empleadoService.crearEmpleado(employeeData);
+        const newEmployee = await empleadoService.crearEmpleado(data);
         setEmployees([...employees, newEmployee]);
         toast({
           title: "Éxito",
@@ -154,23 +155,29 @@ export default function EmployeesPage() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (employeeId: number) => {
-    if (confirm('¿Está seguro que desea eliminar este empleado?')) {
-      try {
-        await empleadoService.desactivarEmpleado(employeeId);
-        setEmployees(employees.filter(emp => emp.id_empleado !== employeeId));
+  const handleToggleStatus = async (employee: EmployeeWithDocuments) => {
+    try {
+      if (employee.usuario?.is_active) {
+        await empleadoService.desactivarEmpleado(employee.id_empleado!);
         toast({
           title: "Éxito",
-          description: "Empleado eliminado correctamente"
+          description: "Empleado desactivado correctamente"
         });
-      } catch (error) {
-        console.error('Error al eliminar empleado:', error);
+      } else {
+        await empleadoService.reactivarEmpleado(employee.id_empleado!);
         toast({
-          title: "Error",
-          description: "No se pudo eliminar el empleado",
-          variant: "destructive"
+          title: "Éxito",
+          description: "Empleado reactivado correctamente"
         });
       }
+      await loadEmployees();
+    } catch (error) {
+      console.error('Error al cambiar estado del empleado:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo cambiar el estado del empleado",
+        variant: "destructive"
+      });
     }
   };
 
@@ -219,7 +226,7 @@ export default function EmployeesPage() {
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
               <Input
-                placeholder="Buscar empleado por nombre o correo..."
+                placeholder="Buscar por nombre, correo o número de empleado..."
                 className="pl-8"
                 value={searchTerm}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
@@ -231,13 +238,13 @@ export default function EmployeesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>ID</TableHead>
+                  <TableHead>Número</TableHead>
                   <TableHead>Nombre</TableHead>
-                  <TableHead>Fecha Nacimiento</TableHead>
-                  <TableHead>Teléfono</TableHead>
                   <TableHead>Correo</TableHead>
-                  <TableHead>Domicilio</TableHead>
+                  <TableHead>Teléfono</TableHead>
+                  <TableHead>CURP</TableHead>
                   <TableHead>Estado Documentos</TableHead>
+                  <TableHead>Estado</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -246,17 +253,21 @@ export default function EmployeesPage() {
                   const status = getDocumentStatus(employee);
                   return (
                     <TableRow key={employee.id_empleado}>
-                      <TableCell className="font-medium">{employee.id_empleado}</TableCell>
+                      <TableCell className="font-medium">{employee.num_empleado || '-'}</TableCell>
                       <TableCell>{employee.nombre}</TableCell>
-                      <TableCell>{new Date(employee.fecha_nacimiento).toLocaleDateString()}</TableCell>
+                      <TableCell>{employee.usuario?.correo}</TableCell>
                       <TableCell>{employee.telefono}</TableCell>
-                      <TableCell>{employee.correo}</TableCell>
-                      <TableCell className="max-w-[200px] truncate" title={employee.domicilio}>
-                        {employee.domicilio}
-                      </TableCell>
+                      <TableCell>{employee.curp}</TableCell>
                       <TableCell>
                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusColor(status)}`}>
                           {getStatusText(status)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                          employee.usuario?.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
+                          {employee.usuario?.is_active ? 'Activo' : 'Inactivo'}
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
@@ -279,10 +290,14 @@ export default function EmployeesPage() {
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="text-red-600 hover:text-red-700"
-                          onClick={() => handleDelete(employee.id_empleado!)}
+                          className={employee.usuario?.is_active ? "text-red-600 hover:text-red-700" : "text-green-600 hover:text-green-700"}
+                          onClick={() => handleToggleStatus(employee)}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          {employee.usuario?.is_active ? (
+                            <UserRoundX className="h-4 w-4" />
+                          ) : (
+                            <UserRoundCheck className="h-4 w-4" />
+                          )}
                         </Button>
                       </TableCell>
                     </TableRow>

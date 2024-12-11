@@ -15,17 +15,14 @@ const startServer = async () => {
     await sequelize.authenticate();
     console.log('Conexión a la base de datos establecida correctamente.');
 
-    // Asegurarse de que los modelos estén cargados
-    await sequelize.sync({ alter: false });
-    console.log('Modelos cargados correctamente.');
-
     // Inicializar asociaciones de modelos
     initializeAssociations();
+    console.log('Modelos cargados correctamente.');
     console.log('Asociaciones de modelos inicializadas correctamente.');
 
     // Sincronizar modelos con la base de datos (no forzar en producción)
     if (process.env.NODE_ENV !== 'production') {
-      await sequelize.sync({ alter: true });
+      await sequelize.sync({ alter: true, force: false });
       console.log('Modelos sincronizados con la base de datos.');
     }
 

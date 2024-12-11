@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { verificarToken, verificarRol } from '../middlewares/auth.middleware';
 import { RolUsuario } from '../types';
+import { documentoController } from '../controllers/documento.controller';
 
 const router = Router();
 
@@ -20,40 +21,28 @@ const verificarAdmin = (req: Request, res: Response, next: NextFunction) => {
 
 // Rutas protegidas
 // Obtener todos los documentos
-router.get('/list', autenticarYVerificarRol, (req: Request, res: Response) => {
-    res.json({ message: 'Lista de documentos' });
-});
+router.get('/list', autenticarYVerificarRol, documentoController.obtenerDocumentos.bind(documentoController));
+
+// Obtener documentos por empleado
+router.get('/empleado/:idEmpleado', autenticarYVerificarRol, documentoController.obtenerDocumentosPorEmpleado.bind(documentoController));
 
 // Obtener un documento por ID
-router.get('/:id', autenticarYVerificarRol, (req: Request, res: Response) => {
-    const { id } = req.params;
-    res.json({ message: `Obtener documento por ID: ${id}` });
-});
+router.get('/:id', autenticarYVerificarRol, documentoController.obtenerDocumentoPorId.bind(documentoController));
 
-// Subir un nuevo documento
-router.post('/', autenticarYVerificarRol, (req: Request, res: Response) => {
-    const documentoData = req.body;
-    res.json({ message: 'Subir documento', data: documentoData });
-});
+// Crear un nuevo documento
+router.post('/', autenticarYVerificarRol, documentoController.crearDocumento.bind(documentoController));
 
 // Actualizar información de un documento
-router.put('/:id', autenticarYVerificarRol, (req: Request, res: Response) => {
-    const { id } = req.params;
-    const documentoData = req.body;
-    res.json({ message: `Actualizar documento: ${id}`, data: documentoData });
-});
+router.put('/:id', autenticarYVerificarRol, documentoController.actualizarDocumento.bind(documentoController));
 
 // Eliminar un documento (solo admin)
-router.delete('/:id', verificarAdmin, (req: Request, res: Response) => {
-    const { id } = req.params;
-    res.json({ message: `Eliminar documento: ${id}` });
-});
+router.delete('/:id', verificarAdmin, documentoController.eliminarDocumento.bind(documentoController));
 
-// Descargar un documento
-router.get('/:id/descargar', autenticarYVerificarRol, (req: Request, res: Response) => {
-    const { id } = req.params;
-    res.json({ message: `Descargar documento: ${id}` });
-});
+// Aprobar un documento (solo admin)
+router.post('/:id/aprobar', verificarAdmin, documentoController.aprobarDocumento.bind(documentoController));
+
+// Rechazar un documento (solo admin)
+router.post('/:id/rechazar', verificarAdmin, documentoController.rechazarDocumento.bind(documentoController));
 
 // Obtener documentos por entidad
 router.get('/entidad/:tipo/:id', autenticarYVerificarRol, (req: Request, res: Response) => {

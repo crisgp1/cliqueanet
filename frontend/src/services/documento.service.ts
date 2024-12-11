@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:3001/api';
+const API_URL = 'http://localhost:3001';
 
 export interface Documento {
     id: number;
@@ -14,6 +14,7 @@ export interface Documento {
     fecha_subida: Date;
     descripcion?: string;
     permisos_acceso?: string;
+    estado: 'pendiente' | 'aprobado' | 'rechazado';
 }
 
 export interface CreateDocumentoDto {
@@ -44,7 +45,7 @@ export interface GenerarPdfResponse {
 }
 
 class DocumentoService {
-    private baseUrl = `${API_URL}/documentos`;
+    private baseUrl = `${API_URL}/api/documentos`;
 
     async obtenerDocumentos(): Promise<Documento[]> {
         try {
@@ -129,6 +130,26 @@ class DocumentoService {
             return response.data.data;
         } catch (error) {
             console.error(`Error al actualizar documento ${id}:`, error);
+            throw error;
+        }
+    }
+
+    async aprobarDocumento(id: number): Promise<Documento> {
+        try {
+            const response = await axios.post<{ data: Documento }>(`${this.baseUrl}/${id}/aprobar`);
+            return response.data.data;
+        } catch (error) {
+            console.error(`Error al aprobar documento ${id}:`, error);
+            throw error;
+        }
+    }
+
+    async rechazarDocumento(id: number): Promise<Documento> {
+        try {
+            const response = await axios.post<{ data: Documento }>(`${this.baseUrl}/${id}/rechazar`);
+            return response.data.data;
+        } catch (error) {
+            console.error(`Error al rechazar documento ${id}:`, error);
             throw error;
         }
     }

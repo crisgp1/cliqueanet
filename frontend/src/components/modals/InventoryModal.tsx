@@ -16,6 +16,8 @@ import { MdAttachMoney, MdQrCode, MdCardMembership, MdSave, MdDelete, MdRefresh,
 import { IoColorPalette } from 'react-icons/io5';
 import { GiCarWheel } from 'react-icons/gi';
 import { RiFileList3Line, RiFileTextLine } from 'react-icons/ri';
+import { Loader2 } from 'lucide-react';
+import { toast } from '@/components/ui/use-toast';
 
 interface Vehicle {
   id_vehiculo: number;
@@ -41,7 +43,7 @@ interface Document {
 interface VehicleModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (vehicle: Omit<Vehicle, 'id_vehiculo'>) => void;
+  onSave: (vehicle: Omit<Vehicle, 'id_vehiculo'>) => Promise<void>;
   vehicle?: Vehicle;
 }
 
@@ -68,6 +70,8 @@ export function InventoryModal({
   const [currentDocument, setCurrentDocument] = useState<Document | null>(null);
   const [documentComment, setDocumentComment] = useState('');
   const [documentType, setDocumentType] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (vehicle) {
@@ -97,31 +101,88 @@ export function InventoryModal({
         tarjeta_circulacion: '',
       });
     }
+    setErrors({});
   }, [vehicle, isOpen]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+    const currentYear = new Date().getFullYear();
+
+    if (!formData.marca.trim()) newErrors.marca = 'La marca es requerida';
+    if (!formData.modelo.trim()) newErrors.modelo = 'El modelo es requerido';
+    if (!formData.anio) {
+      newErrors.anio = 'El año es requerido';
+    } else {
+      const year = Number(formData.anio);
+      if (year < 1900 || year > currentYear + 1) {
+        newErrors.anio = `El año debe estar entre 1900 y ${currentYear + 1}`;
+      }
+    }
+    if (!formData.precio) {
+      newErrors.precio = 'El precio es requerido';
+    } else if (Number(formData.precio) <= 0) {
+      newErrors.precio = 'El precio debe ser mayor a 0';
+    }
+    if (!formData.num_serie.trim()) {
+      newErrors.num_serie = 'El número de serie es requerido';
+    } else if (formData.num_serie.length !== 17) {
+      newErrors.num_serie = 'El número de serie debe tener 17 caracteres';
+    }
+    if (!formData.color.trim()) newErrors.color = 'El color es requerido';
+    if (!formData.num_motor.trim()) newErrors.num_motor = 'El número de motor es requerido';
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const vehicleData = {
-      marca: formData.marca,
-      modelo: formData.modelo,
-      anio: Number(formData.anio),
-      precio: Number(formData.precio),
-      num_serie: formData.num_serie,
-      color: formData.color,
-      num_motor: formData.num_motor,
-      num_factura: formData.num_factura || undefined,
-      placas: formData.placas || undefined,
-      tarjeta_circulacion: formData.tarjeta_circulacion || undefined
-    };
+    if (!validateForm()) {
+      toast({
+        title: "Error",
+        description: "Por favor, corrija los errores en el formulario",
+        variant: "destructive"
+      });
+      return;
+    }
 
-    onSave(vehicleData);
-    onClose();
+    try {
+      setIsSubmitting(true);
+      const vehicleData = {
+        marca: formData.marca,
+        modelo: formData.modelo,
+        anio: Number(formData.anio),
+        precio: Number(formData.precio),
+        num_serie: formData.num_serie,
+        color: formData.color,
+        num_motor: formData.num_motor,
+        num_factura: formData.num_factura || undefined,
+        placas: formData.placas || undefined,
+        tarjeta_circulacion: formData.tarjeta_circulacion || undefined
+      };
+
+      await onSave(vehicleData);
+      onClose();
+    } catch (error) {
+      console.error('Error al guardar vehículo:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo guardar el vehículo. Por favor, intente de nuevo.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    // Limpiar error cuando el usuario comienza a escribir
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
   };
 
   const handleScan = async () => {
@@ -133,8 +194,17 @@ export function InventoryModal({
         tipo_documento: documentType,
         descripcion: documentComment
       });
+      toast({
+        title: "Éxito",
+        description: "Documento escaneado correctamente",
+      });
     } catch (error) {
       console.error('Error scanning document:', error);
+      toast({
+        title: "Error",
+        description: "Error al escanear el documento. Por favor, intente de nuevo.",
+        variant: "destructive"
+      });
     } finally {
       setScanning(false);
     }
@@ -160,9 +230,18 @@ export function InventoryModal({
         descripcion: documentComment
       });
       
+      toast({
+        title: "Éxito",
+        description: "Documento guardado correctamente",
+      });
       handleDeleteScan();
     } catch (error) {
       console.error('Error saving document:', error);
+      toast({
+        title: "Error",
+        description: "Error al guardar el documento. Por favor, intente de nuevo.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -190,7 +269,11 @@ export function InventoryModal({
                   value={formData.marca}
                   onChange={handleChange}
                   required
+                  className={errors.marca ? 'border-red-500' : ''}
                 />
+                {errors.marca && (
+                  <p className="text-sm text-red-500">{errors.marca}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <label htmlFor="modelo" className="text-sm font-medium flex items-center gap-2">
@@ -203,7 +286,11 @@ export function InventoryModal({
                   value={formData.modelo}
                   onChange={handleChange}
                   required
+                  className={errors.modelo ? 'border-red-500' : ''}
                 />
+                {errors.modelo && (
+                  <p className="text-sm text-red-500">{errors.modelo}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <label htmlFor="anio" className="text-sm font-medium flex items-center gap-2">
@@ -215,11 +302,15 @@ export function InventoryModal({
                   name="anio"
                   type="number"
                   min="1900"
-                  max="2100"
+                  max={new Date().getFullYear() + 1}
                   value={formData.anio}
                   onChange={handleChange}
                   required
+                  className={errors.anio ? 'border-red-500' : ''}
                 />
+                {errors.anio && (
+                  <p className="text-sm text-red-500">{errors.anio}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <label htmlFor="precio" className="text-sm font-medium flex items-center gap-2">
@@ -234,7 +325,11 @@ export function InventoryModal({
                   value={formData.precio}
                   onChange={handleChange}
                   required
+                  className={errors.precio ? 'border-red-500' : ''}
                 />
+                {errors.precio && (
+                  <p className="text-sm text-red-500">{errors.precio}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <label htmlFor="num_serie" className="text-sm font-medium flex items-center gap-2">
@@ -247,7 +342,11 @@ export function InventoryModal({
                   value={formData.num_serie}
                   onChange={handleChange}
                   required
+                  className={errors.num_serie ? 'border-red-500' : ''}
                 />
+                {errors.num_serie && (
+                  <p className="text-sm text-red-500">{errors.num_serie}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <label htmlFor="color" className="text-sm font-medium flex items-center gap-2">
@@ -260,7 +359,11 @@ export function InventoryModal({
                   value={formData.color}
                   onChange={handleChange}
                   required
+                  className={errors.color ? 'border-red-500' : ''}
                 />
+                {errors.color && (
+                  <p className="text-sm text-red-500">{errors.color}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <label htmlFor="num_motor" className="text-sm font-medium flex items-center gap-2">
@@ -273,7 +376,11 @@ export function InventoryModal({
                   value={formData.num_motor}
                   onChange={handleChange}
                   required
+                  className={errors.num_motor ? 'border-red-500' : ''}
                 />
+                {errors.num_motor && (
+                  <p className="text-sm text-red-500">{errors.num_motor}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <label htmlFor="num_factura" className="text-sm font-medium flex items-center gap-2">
@@ -345,8 +452,17 @@ export function InventoryModal({
                     disabled={scanning || !documentType}
                     className="w-full flex items-center justify-center gap-2"
                   >
-                    <MdDocumentScanner className="h-4 w-4" />
-                    {scanning ? 'Escaneando...' : 'Escanear Documento'}
+                    {scanning ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Escaneando...
+                      </>
+                    ) : (
+                      <>
+                        <MdDocumentScanner className="h-4 w-4" />
+                        Escanear Documento
+                      </>
+                    )}
                   </Button>
                 </div>
               ) : (
@@ -393,12 +509,26 @@ export function InventoryModal({
           </div>
 
           <DialogFooter className="px-6 py-4 border-t mt-auto">
-            <Button type="button" variant="outline" onClick={onClose} className="flex items-center gap-2">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onClose} 
+              className="flex items-center gap-2"
+              disabled={isSubmitting}
+            >
               <MdClose className="h-4 w-4" />
               Cancelar
             </Button>
-            <Button type="submit" className="flex items-center gap-2">
-              <MdSave className="h-4 w-4" />
+            <Button 
+              type="submit" 
+              className="flex items-center gap-2"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <MdSave className="h-4 w-4" />
+              )}
               {vehicle ? 'Guardar Cambios' : 'Agregar Vehículo'}
             </Button>
           </DialogFooter>

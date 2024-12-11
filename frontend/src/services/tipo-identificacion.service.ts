@@ -5,6 +5,7 @@ const API_URL = 'http://localhost:3001/api';
 export interface TipoIdentificacion {
   id: number;
   nombre: string;
+  descripcion?: string;
 }
 
 interface ApiResponse<T> {
@@ -14,11 +15,19 @@ interface ApiResponse<T> {
 }
 
 class TipoIdentificacionService {
-  private baseUrl = `${API_URL}/catalogs/tipo-identificacion`;
+  private baseUrl = `${API_URL}/catalogs/tipos-identificacion`;
+
+  private getAuthHeader() {
+    const token = localStorage.getItem('token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
 
   async getAll(): Promise<TipoIdentificacion[]> {
     try {
-      const response = await axios.get<ApiResponse<TipoIdentificacion[]>>(this.baseUrl);
+      const response = await axios.get<ApiResponse<TipoIdentificacion[]>>(
+        this.baseUrl,
+        { headers: this.getAuthHeader() }
+      );
       return response.data.data;
     } catch (error) {
       console.error('Error al obtener tipos de identificación:', error);
@@ -28,7 +37,10 @@ class TipoIdentificacionService {
 
   async getById(id: number): Promise<TipoIdentificacion> {
     try {
-      const response = await axios.get<ApiResponse<TipoIdentificacion>>(`${this.baseUrl}/${id}`);
+      const response = await axios.get<ApiResponse<TipoIdentificacion>>(
+        `${this.baseUrl}/${id}`,
+        { headers: this.getAuthHeader() }
+      );
       return response.data.data;
     } catch (error) {
       console.error(`Error al obtener tipo de identificación ${id}:`, error);
