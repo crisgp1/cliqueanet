@@ -1,7 +1,9 @@
 import { useState, useEffect, ChangeEvent } from 'react';
-import { Check, Upload } from 'lucide-react';
+import { Check, Upload, AlertCircle } from 'lucide-react';
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
+import { toast } from "@/components/ui/use-toast";
+import { TipoDocumentoEmpleado, TipoDocumentoVehiculo, TipoDocumentoTransaccion, EntidadOrigen } from '@/services/documento.service';
 
 interface DocumentItem {
   id: string;
@@ -10,12 +12,26 @@ interface DocumentItem {
   uploaded: boolean;
   file: File | null;
   description: string;
+  uploading?: boolean;
+  error?: string;
+  tipoDocumentoEmpleado?: TipoDocumentoEmpleado;
+  tipoDocumentoVehiculo?: TipoDocumentoVehiculo;
+  tipoDocumentoTransaccion?: TipoDocumentoTransaccion;
+  entidadOrigen: EntidadOrigen;
 }
 
 interface DocumentChecklistProps {
   tipoPersona: 'Física' | 'Moral';
   tipoTransaccion?: 'VENTA' | 'CREDITO' | 'CONSIGNACION';
-  onDocumentsChange: (documents: { file: File; description: string }[]) => void;
+  entidadOrigen?: EntidadOrigen;
+  onDocumentsChange: (documents: { 
+    file: File; 
+    description: string;
+    tipoDocumentoEmpleado?: TipoDocumentoEmpleado;
+    tipoDocumentoVehiculo?: TipoDocumentoVehiculo;
+    tipoDocumentoTransaccion?: TipoDocumentoTransaccion;
+    entidadOrigen: EntidadOrigen;
+  }[]) => void;
 }
 
 const DOCUMENTOS_REQUERIDOS = {
@@ -24,7 +40,10 @@ const DOCUMENTOS_REQUERIDOS = {
   CONSIGNACION: ['Identificación', 'Comprobante de Domicilio', 'Carta Responsiva', 'Contrato']
 } as const;
 
-export function DocumentChecklist({ tipoPersona, tipoTransaccion, onDocumentsChange }: DocumentChecklistProps) {
+// Tamaño máximo de archivo en bytes (10MB)
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+export function DocumentChecklist({ tipoPersona, tipoTransaccion, entidadOrigen = 'cliente', onDocumentsChange }: DocumentChecklistProps) {
   const getInitialDocuments = (): DocumentItem[] => {
     const commonDocuments = [
       {
@@ -33,7 +52,9 @@ export function DocumentChecklist({ tipoPersona, tipoTransaccion, onDocumentsCha
         required: true,
         uploaded: false,
         file: null,
-        description: ''
+        description: '',
+        entidadOrigen,
+        ...(entidadOrigen === 'empleado' && { tipoDocumentoEmpleado: 'identificacion' as TipoDocumentoEmpleado })
       },
       {
         id: 'comprobante_domicilio',
@@ -41,7 +62,9 @@ export function DocumentChecklist({ tipoPersona, tipoTransaccion, onDocumentsCha
         required: true,
         uploaded: false,
         file: null,
-        description: ''
+        description: '',
+        entidadOrigen,
+        ...(entidadOrigen === 'empleado' && { tipoDocumentoEmpleado: 'comprobante_domicilio' as TipoDocumentoEmpleado })
       }
     ];
 
@@ -57,7 +80,9 @@ export function DocumentChecklist({ tipoPersona, tipoTransaccion, onDocumentsCha
             required: true,
             uploaded: false,
             file: null,
-            description: ''
+            description: '',
+            entidadOrigen: 'transaccion',
+            tipoDocumentoTransaccion: 'factura'
           },
           {
             id: 'contrato_venta',
@@ -65,7 +90,9 @@ export function DocumentChecklist({ tipoPersona, tipoTransaccion, onDocumentsCha
             required: true,
             uploaded: false,
             file: null,
-            description: ''
+            description: '',
+            entidadOrigen: 'transaccion',
+            tipoDocumentoTransaccion: 'contrato_compraventa'
           }
         );
       } else if (tipoTransaccion === 'CREDITO') {
@@ -76,7 +103,9 @@ export function DocumentChecklist({ tipoPersona, tipoTransaccion, onDocumentsCha
             required: true,
             uploaded: false,
             file: null,
-            description: ''
+            description: '',
+            entidadOrigen: 'transaccion',
+            tipoDocumentoTransaccion: 'comprobante_pago'
           },
           {
             id: 'estado_cuenta',
@@ -84,7 +113,9 @@ export function DocumentChecklist({ tipoPersona, tipoTransaccion, onDocumentsCha
             required: true,
             uploaded: false,
             file: null,
-            description: ''
+            description: '',
+            entidadOrigen: 'transaccion',
+            tipoDocumentoTransaccion: 'otro'
           }
         );
       } else if (tipoTransaccion === 'CONSIGNACION') {
@@ -95,7 +126,9 @@ export function DocumentChecklist({ tipoPersona, tipoTransaccion, onDocumentsCha
             required: true,
             uploaded: false,
             file: null,
-            description: ''
+            description: '',
+            entidadOrigen: 'transaccion',
+            tipoDocumentoTransaccion: 'carta_responsiva'
           },
           {
             id: 'contrato_consignacion',
@@ -103,7 +136,9 @@ export function DocumentChecklist({ tipoPersona, tipoTransaccion, onDocumentsCha
             required: true,
             uploaded: false,
             file: null,
-            description: ''
+            description: '',
+            entidadOrigen: 'transaccion',
+            tipoDocumentoTransaccion: 'contrato_compraventa'
           }
         );
       }
@@ -120,7 +155,8 @@ export function DocumentChecklist({ tipoPersona, tipoTransaccion, onDocumentsCha
           required: true,
           uploaded: false,
           file: null,
-          description: ''
+          description: '',
+          entidadOrigen
         },
         {
           id: 'poder_notarial',
@@ -128,7 +164,8 @@ export function DocumentChecklist({ tipoPersona, tipoTransaccion, onDocumentsCha
           required: true,
           uploaded: false,
           file: null,
-          description: ''
+          description: '',
+          entidadOrigen
         },
         {
           id: 'rfc',
@@ -136,7 +173,8 @@ export function DocumentChecklist({ tipoPersona, tipoTransaccion, onDocumentsCha
           required: true,
           uploaded: false,
           file: null,
-          description: ''
+          description: '',
+          entidadOrigen
         },
         {
           id: 'identificacion_representante',
@@ -144,7 +182,8 @@ export function DocumentChecklist({ tipoPersona, tipoTransaccion, onDocumentsCha
           required: true,
           uploaded: false,
           file: null,
-          description: ''
+          description: '',
+          entidadOrigen
         }
       ];
     }
@@ -157,16 +196,48 @@ export function DocumentChecklist({ tipoPersona, tipoTransaccion, onDocumentsCha
 
   useEffect(() => {
     setDocuments(getInitialDocuments());
-  }, [tipoTransaccion, tipoPersona]);
+  }, [tipoTransaccion, tipoPersona, entidadOrigen]);
+
+  const validateFile = (file: File): string | null => {
+    if (file.size > MAX_FILE_SIZE) {
+      return 'El archivo excede el tamaño máximo permitido (10MB)';
+    }
+
+    const allowedTypes = [
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
+      'application/xml'
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      return 'Tipo de archivo no permitido. Solo se permiten PDF, JPG, PNG y XML';
+    }
+
+    return null;
+  };
 
   const handleFileChange = (id: string, file: File | null, isCustom: boolean = false) => {
+    if (file) {
+      const error = validateFile(file);
+      if (error) {
+        toast({
+          title: "Error",
+          description: error,
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+
     const updateDocuments = (docs: DocumentItem[]) =>
       docs.map(doc =>
         doc.id === id
           ? {
               ...doc,
               file,
-              uploaded: !!file
+              uploaded: !!file,
+              error: undefined
             }
           : doc
       );
@@ -182,7 +253,11 @@ export function DocumentChecklist({ tipoPersona, tipoTransaccion, onDocumentsCha
       .filter(doc => doc.file)
       .map(doc => ({
         file: doc.file as File,
-        description: doc.description
+        description: doc.description,
+        tipoDocumentoEmpleado: doc.tipoDocumentoEmpleado,
+        tipoDocumentoVehiculo: doc.tipoDocumentoVehiculo,
+        tipoDocumentoTransaccion: doc.tipoDocumentoTransaccion,
+        entidadOrigen: doc.entidadOrigen
       }));
     onDocumentsChange(allDocuments);
   };
@@ -209,7 +284,11 @@ export function DocumentChecklist({ tipoPersona, tipoTransaccion, onDocumentsCha
       .filter(doc => doc.file)
       .map(doc => ({
         file: doc.file as File,
-        description: doc.description
+        description: doc.description,
+        tipoDocumentoEmpleado: doc.tipoDocumentoEmpleado,
+        tipoDocumentoVehiculo: doc.tipoDocumentoVehiculo,
+        tipoDocumentoTransaccion: doc.tipoDocumentoTransaccion,
+        entidadOrigen: doc.entidadOrigen
       }));
     onDocumentsChange(allDocuments);
   };
@@ -221,7 +300,8 @@ export function DocumentChecklist({ tipoPersona, tipoTransaccion, onDocumentsCha
       required: false,
       uploaded: false,
       file: null,
-      description: ''
+      description: '',
+      entidadOrigen
     };
     setCustomDocuments([...customDocuments, newDoc]);
   };
@@ -230,9 +310,14 @@ export function DocumentChecklist({ tipoPersona, tipoTransaccion, onDocumentsCha
     <div key={doc.id} className="flex flex-col space-y-2 p-4 border rounded-lg">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
-          {doc.uploaded && (
+          {doc.uploaded && !doc.error && (
             <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
               <Check className="w-3 h-3 text-white" />
+            </div>
+          )}
+          {doc.error && (
+            <div className="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center">
+              <AlertCircle className="w-3 h-3 text-white" />
             </div>
           )}
           <span className="font-medium">
@@ -254,10 +339,16 @@ export function DocumentChecklist({ tipoPersona, tipoTransaccion, onDocumentsCha
             onChange={(e: ChangeEvent<HTMLInputElement>) => handleFileChange(doc.id, e.target.files?.[0] || null, isCustom)}
             className="flex-1"
             accept=".pdf,.jpg,.png,.xml"
+            disabled={doc.uploading}
           />
-          {doc.uploaded && (
+          {doc.uploaded && !doc.error && (
             <span className="text-sm text-green-500">
               {doc.file?.name}
+            </span>
+          )}
+          {doc.error && (
+            <span className="text-sm text-red-500">
+              {doc.error}
             </span>
           )}
         </div>

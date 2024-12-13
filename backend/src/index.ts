@@ -22,7 +22,7 @@ const startServer = async () => {
 
     // Sincronizar modelos con la base de datos (no forzar en producción)
     if (process.env.NODE_ENV !== 'production') {
-      await sequelize.sync({ alter: true, force: false });
+      await sequelize.sync({ alter: false, force: false });
       console.log('Modelos sincronizados con la base de datos.');
     }
 

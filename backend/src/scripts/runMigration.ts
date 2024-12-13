@@ -33,7 +33,7 @@ async function runMigration() {
     // Leer el archivo de migración
     console.log('Ejecutando migración...');
     const migrationSql = await fs.readFile(
-      path.join(__dirname, '..', 'database', 'migrations', 'add_fecha_transaccion_to_documentos.sql'),
+      path.join(__dirname, '..', 'database', 'migrations', 'fix_vehiculos_marca_column.sql'),
       'utf8'
     );
 

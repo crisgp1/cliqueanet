@@ -1,5 +1,3 @@
-// documento.model.ts
-
 import { Table, Column, Model, DataType, ForeignKey, BelongsTo } from 'sequelize-typescript';
 import { Op } from 'sequelize';
 import { Transaccion } from './transaccion.model';
@@ -10,7 +8,7 @@ import { Usuario } from './usuario.model';
 // Estados de documento
 export type DocumentoEstado = 'pendiente' | 'aprobado' | 'rechazado';
 
-// Tipos de documento
+// Tipos de documento base
 export type TipoDocumento = 
   'Identificación' | 
   'Comprobante de Domicilio' | 
@@ -24,6 +22,36 @@ export type TipoDocumento =
   'Comprobante de Ingresos' |
   'Estado de Cuenta' |
   'Otro';
+
+// Tipos específicos de documentos
+export type TipoDocumentoEmpleado = 
+  'identificacion' |
+  'comprobante_domicilio' |
+  'cv' |
+  'contrato_laboral' |
+  'certificaciones' |
+  'titulo_profesional' |
+  'otro';
+
+export type TipoDocumentoVehiculo = 
+  'factura_original' |
+  'tarjeta_circulacion' |
+  'pedimento' |
+  'verificacion' |
+  'poliza_seguro' |
+  'fotos' |
+  'otro';
+
+export type TipoDocumentoTransaccion = 
+  'contrato_compraventa' |
+  'pagare' |
+  'comprobante_pago' |
+  'factura' |
+  'carta_responsiva' |
+  'otro';
+
+// Tipos de entidad
+export type EntidadOrigen = 'cliente' | 'empleado' | 'vehiculo' | 'transaccion' | 'general';
 
 // Permisos de acceso
 export type PermisosAcceso = 'público' | 'privado' | 'restringido';
@@ -134,11 +162,7 @@ export class Documento extends Model {
   @Column({
     type: DataType.INTEGER,
     allowNull: true,
-    field: 'id_empleado',
-    references: {
-      model: 'usuarios',
-      key: 'id_usuario'
-    }
+    field: 'id_empleado'
   })
   idEmpleado?: number;
 
@@ -146,11 +170,7 @@ export class Documento extends Model {
   @Column({
     type: DataType.INTEGER,
     allowNull: true,
-    field: 'id_cliente',
-    references: {
-      model: 'clientes',
-      key: 'id_cliente'
-    }
+    field: 'id_cliente'
   })
   idCliente?: number;
 
@@ -158,11 +178,7 @@ export class Documento extends Model {
   @Column({
     type: DataType.INTEGER,
     allowNull: true,
-    field: 'id_vehiculo',
-    references: {
-      model: 'vehiculos',
-      key: 'id_vehiculo'
-    }
+    field: 'id_vehiculo'
   })
   idVehiculo?: number;
 
@@ -170,11 +186,7 @@ export class Documento extends Model {
   @Column({
     type: DataType.INTEGER,
     allowNull: true,
-    field: 'id_transaccion',
-    references: {
-      model: 'transacciones',
-      key: 'id_transaccion'
-    }
+    field: 'id_transaccion'
   })
   idTransaccion?: number;
 
@@ -236,6 +248,90 @@ export class Documento extends Model {
     field: 'estado'
   })
   estado!: DocumentoEstado;
+
+  // Nuevos campos
+  @Column({
+    type: DataType.STRING(255),
+    allowNull: true,
+    field: 'nombre_archivo_original'
+  })
+  nombreArchivoOriginal?: string;
+
+  @Column({
+    type: DataType.STRING(100),
+    allowNull: true,
+    field: 'mime_type'
+  })
+  mimeType?: string;
+
+  @Column({
+    type: DataType.BIGINT,
+    allowNull: true,
+    field: 'tamanio_archivo'
+  })
+  tamanioArchivo?: number;
+
+  @Column({
+    type: DataType.STRING(255),
+    allowNull: true,
+    field: 'hash_archivo'
+  })
+  hashArchivo?: string;
+
+  @Column({
+    type: DataType.STRING(50),
+    allowNull: false,
+    field: 'entidad_origen',
+    defaultValue: 'general',
+    validate: {
+      isIn: [['cliente', 'empleado', 'vehiculo', 'transaccion', 'general']]
+    }
+  })
+  entidadOrigen!: EntidadOrigen;
+
+  @Column({
+    type: DataType.ENUM(
+      'identificacion',
+      'comprobante_domicilio',
+      'cv',
+      'contrato_laboral',
+      'certificaciones',
+      'titulo_profesional',
+      'otro'
+    ),
+    allowNull: true,
+    field: 'tipo_documento_empleado'
+  })
+  tipoDocumentoEmpleado?: TipoDocumentoEmpleado;
+
+  @Column({
+    type: DataType.ENUM(
+      'factura_original',
+      'tarjeta_circulacion',
+      'pedimento',
+      'verificacion',
+      'poliza_seguro',
+      'fotos',
+      'otro'
+    ),
+    allowNull: true,
+    field: 'tipo_documento_vehiculo'
+  })
+  tipoDocumentoVehiculo?: TipoDocumentoVehiculo;
+
+  @Column({
+    type: DataType.ENUM(
+      'contrato_compraventa',
+      'pagare',
+      'comprobante_pago',
+      'factura',
+      'carta_responsiva',
+      'otro'
+    ),
+    allowNull: true,
+    field: 'tipo_documento_transaccion'
+  })
+  tipoDocumentoTransaccion?: TipoDocumentoTransaccion;
 
   // Relaciones
   @BelongsTo(() => Usuario, { foreignKey: 'id_empleado', as: 'usuarioDocumento' })
@@ -307,6 +403,11 @@ export class Documento extends Model {
       errores.push(`Extensión no permitida. Permitidas: ${validacion.extensionesPermitidas.join(', ')}`);
     }
 
+    // Validar tamaño
+    if (this.tamanioArchivo && this.tamanioArchivo > validacion.tamañoMaximoMB * 1024 * 1024) {
+      errores.push(`El archivo excede el tamaño máximo permitido de ${validacion.tamañoMaximoMB}MB`);
+    }
+
     // Validar vigencia si es requerida
     if (validacion.vigenciaRequerida && validacion.antiguedadMaximaMeses) {
       const fechaLimite = new Date();
@@ -324,22 +425,24 @@ export class Documento extends Model {
 
   // Método para obtener documentos por tipo y entidad
   static async getDocumentosPorTipoYEntidad(
-    tipo: TipoDocumento,
+    entidadOrigen: EntidadOrigen,
     params: {
       idCliente?: number;
       idVehiculo?: number;
       idTransaccion?: number;
       fechaTransaccion?: Date;
+      idEmpleado?: number;
     }
   ): Promise<Documento[]> {
-    const where: any = { tipo_documento: tipo };
+    const where: any = { entidad_origen: entidadOrigen };
 
     if (params.idCliente) where.id_cliente = params.idCliente;
-    if (params.idVehiculo) where.idVehiculo = params.idVehiculo;
+    if (params.idVehiculo) where.id_vehiculo = params.idVehiculo;
     if (params.idTransaccion) {
       where.id_transaccion = params.idTransaccion;
       if (params.fechaTransaccion) where.fecha_transaccion = params.fechaTransaccion;
     }
+    if (params.idEmpleado) where.id_empleado = params.idEmpleado;
 
     return await this.findAll({
       where,

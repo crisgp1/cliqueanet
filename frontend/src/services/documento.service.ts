@@ -1,6 +1,34 @@
 import axios from 'axios';
 import { API_BASE_URL } from '../config/api.config';
 
+export type TipoDocumentoEmpleado = 
+  'identificacion' |
+  'comprobante_domicilio' |
+  'cv' |
+  'contrato_laboral' |
+  'certificaciones' |
+  'titulo_profesional' |
+  'otro';
+
+export type TipoDocumentoVehiculo = 
+  'factura_original' |
+  'tarjeta_circulacion' |
+  'pedimento' |
+  'verificacion' |
+  'poliza_seguro' |
+  'fotos' |
+  'otro';
+
+export type TipoDocumentoTransaccion = 
+  'contrato_compraventa' |
+  'pagare' |
+  'comprobante_pago' |
+  'factura' |
+  'carta_responsiva' |
+  'otro';
+
+export type EntidadOrigen = 'cliente' | 'empleado' | 'vehiculo' | 'transaccion' | 'general';
+
 export interface Documento {
     id: number;
     nombre: string;
@@ -14,6 +42,14 @@ export interface Documento {
     descripcion?: string;
     permisos_acceso?: string;
     estado: 'pendiente' | 'aprobado' | 'rechazado';
+    nombre_archivo_original?: string;
+    mime_type?: string;
+    tamanio_archivo?: number;
+    hash_archivo?: string;
+    entidad_origen: EntidadOrigen;
+    tipo_documento_empleado?: TipoDocumentoEmpleado;
+    tipo_documento_vehiculo?: TipoDocumentoVehiculo;
+    tipo_documento_transaccion?: TipoDocumentoTransaccion;
 }
 
 export interface CreateDocumentoDto {
@@ -24,6 +60,10 @@ export interface CreateDocumentoDto {
     id_cliente?: number;
     id_vehiculo?: number;
     id_transaccion?: number;
+    descripcion?: string;
+    tipo_documento_empleado?: TipoDocumentoEmpleado;
+    tipo_documento_vehiculo?: TipoDocumentoVehiculo;
+    tipo_documento_transaccion?: TipoDocumentoTransaccion;
 }
 
 export interface UpdateDocumentoDto {
@@ -31,6 +71,10 @@ export interface UpdateDocumentoDto {
     tipo?: string;
     archivo?: File;
     estado?: 'pendiente' | 'aprobado' | 'rechazado';
+    descripcion?: string;
+    tipo_documento_empleado?: TipoDocumentoEmpleado;
+    tipo_documento_vehiculo?: TipoDocumentoVehiculo;
+    tipo_documento_transaccion?: TipoDocumentoTransaccion;
 }
 
 export interface DocumentosResponse {
@@ -41,6 +85,12 @@ export interface DocumentosResponse {
 export interface GenerarPdfResponse {
     url: string;
     filename: string;
+}
+
+export interface VerificarIntegridadResponse {
+    integridadVerificada: boolean;
+    hashOriginal: string;
+    hashActual: string;
 }
 
 class DocumentoService {
@@ -119,11 +169,27 @@ class DocumentoService {
             const formData = new FormData();
             formData.append('nombre', documento.nombre);
             formData.append('tipo', documento.tipo);
-            formData.append('archivo', documento.archivo);
-            if (documento.id_empleado) formData.append('id_empleado', documento.id_empleado.toString());
+            formData.append('file', documento.archivo);
+            if (documento.id_empleado) {
+                formData.append('id_empleado', documento.id_empleado.toString());
+                if (documento.tipo_documento_empleado) {
+                    formData.append('tipo_documento_empleado', documento.tipo_documento_empleado);
+                }
+            }
             if (documento.id_cliente) formData.append('id_cliente', documento.id_cliente.toString());
-            if (documento.id_vehiculo) formData.append('id_vehiculo', documento.id_vehiculo.toString());
-            if (documento.id_transaccion) formData.append('id_transaccion', documento.id_transaccion.toString());
+            if (documento.id_vehiculo) {
+                formData.append('id_vehiculo', documento.id_vehiculo.toString());
+                if (documento.tipo_documento_vehiculo) {
+                    formData.append('tipo_documento_vehiculo', documento.tipo_documento_vehiculo);
+                }
+            }
+            if (documento.id_transaccion) {
+                formData.append('id_transaccion', documento.id_transaccion.toString());
+                if (documento.tipo_documento_transaccion) {
+                    formData.append('tipo_documento_transaccion', documento.tipo_documento_transaccion);
+                }
+            }
+            if (documento.descripcion) formData.append('descripcion', documento.descripcion);
 
             const response = await axios.post<{ data: Documento }>(this.baseUrl, formData, {
                 headers: {
@@ -142,8 +208,18 @@ class DocumentoService {
             const formData = new FormData();
             if (documento.nombre) formData.append('nombre', documento.nombre);
             if (documento.tipo) formData.append('tipo', documento.tipo);
-            if (documento.archivo) formData.append('archivo', documento.archivo);
+            if (documento.archivo) formData.append('file', documento.archivo);
             if (documento.estado) formData.append('estado', documento.estado);
+            if (documento.descripcion) formData.append('descripcion', documento.descripcion);
+            if (documento.tipo_documento_empleado) {
+                formData.append('tipo_documento_empleado', documento.tipo_documento_empleado);
+            }
+            if (documento.tipo_documento_vehiculo) {
+                formData.append('tipo_documento_vehiculo', documento.tipo_documento_vehiculo);
+            }
+            if (documento.tipo_documento_transaccion) {
+                formData.append('tipo_documento_transaccion', documento.tipo_documento_transaccion);
+            }
 
             const response = await axios.put<{ data: Documento }>(`${this.baseUrl}/${id}`, formData, {
                 headers: {
@@ -157,9 +233,12 @@ class DocumentoService {
         }
     }
 
-    async aprobarDocumento(id: number): Promise<Documento> {
+    async aprobarDocumento(id: number, idUsuario: number, comentario?: string): Promise<Documento> {
         try {
-            const response = await axios.post<{ data: Documento }>(`${this.baseUrl}/${id}/aprobar`);
+            const response = await axios.post<{ data: Documento }>(`${this.baseUrl}/${id}/aprobar`, {
+                idUsuario,
+                comentario
+            });
             return this.processDocumento(response.data.data);
         } catch (error) {
             console.error(`Error al aprobar documento ${id}:`, error);
@@ -167,9 +246,12 @@ class DocumentoService {
         }
     }
 
-    async rechazarDocumento(id: number): Promise<Documento> {
+    async rechazarDocumento(id: number, idUsuario: number, comentario?: string): Promise<Documento> {
         try {
-            const response = await axios.post<{ data: Documento }>(`${this.baseUrl}/${id}/rechazar`);
+            const response = await axios.post<{ data: Documento }>(`${this.baseUrl}/${id}/rechazar`, {
+                idUsuario,
+                comentario
+            });
             return this.processDocumento(response.data.data);
         } catch (error) {
             console.error(`Error al rechazar documento ${id}:`, error);
@@ -182,6 +264,18 @@ class DocumentoService {
             await axios.delete(`${this.baseUrl}/${id}`);
         } catch (error) {
             console.error(`Error al eliminar documento ${id}:`, error);
+            throw error;
+        }
+    }
+
+    async verificarIntegridad(id: number): Promise<VerificarIntegridadResponse> {
+        try {
+            const response = await axios.get<{ data: VerificarIntegridadResponse }>(
+                `${this.baseUrl}/${id}/verificar-integridad`
+            );
+            return response.data.data;
+        } catch (error) {
+            console.error(`Error al verificar integridad del documento ${id}:`, error);
             throw error;
         }
     }
@@ -205,7 +299,7 @@ class DocumentoService {
         try {
             const formData = new FormData();
             archivos.forEach((archivo, index) => {
-                formData.append(`archivos[${index}]`, archivo);
+                formData.append(`file[${index}]`, archivo);
             });
             formData.append('id_transaccion', idTransaccion.toString());
 
@@ -236,7 +330,6 @@ class DocumentoService {
             throw error;
         }
     }
-    
 }
 
 export const documentoService = new DocumentoService();
