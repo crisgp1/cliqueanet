@@ -18,15 +18,18 @@ export function ViewEmployeeDocumentsModal({ isOpen, onClose, employee }: ViewEm
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (isOpen && employee.id_empleado) {
+    if (isOpen && employee.id) {
       loadDocumentos();
     }
-  }, [isOpen, employee.id_empleado]);
+  }, [isOpen, employee.id]);
 
   const loadDocumentos = async () => {
     try {
       setIsLoading(true);
-      const response = await documentoService.obtenerDocumentosPorEmpleado(employee.id_empleado!);
+      if (!employee.id) {
+        throw new Error('ID de empleado no válido');
+      }
+      const response = await documentoService.obtenerDocumentosPorEmpleado(employee.id);
       setDocumentos(response.documentos);
     } catch (error) {
       console.error('Error al cargar documentos:', error);
@@ -86,8 +89,8 @@ export function ViewEmployeeDocumentsModal({ isOpen, onClose, employee }: ViewEm
           <FaFileAlt className="text-gray-500 text-xl" />
           <div>
             <h3 className="font-semibold">Documentos de {employee.nombre}</h3>
-            {employee.id_empleado && (
-              <p className="text-sm text-gray-500">ID: {employee.id_empleado}</p>
+            {employee.id && (
+              <p className="text-sm text-gray-500">ID: {employee.id}</p>
             )}
           </div>
         </div>

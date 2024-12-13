@@ -15,7 +15,7 @@ export interface IUsuarioEmpleado {
 }
 
 export interface IEmpleado {
-    id?: number;
+    id_empleado?: number;
     idUsuario?: number;
     idTipoIdentificacion: number;
     nombre: string;
@@ -52,7 +52,6 @@ export class EmpleadoService {
             headers: this.getAuthHeaders(),
         });
 
-        // Interceptor para añadir el token a cada solicitud
         this.axiosInstance.interceptors.request.use(config => {
             const token = localStorage.getItem('token');
             if (token) {
@@ -119,7 +118,7 @@ export class EmpleadoService {
 
     public async crearEmpleado(data: { 
         usuario: IUsuarioEmpleado; 
-        empleado: Omit<IEmpleado, 'id' | 'idUsuario' | 'usuario' | 'tipoIdentificacion'> 
+        empleado: Omit<IEmpleado, 'id_empleado' | 'idUsuario' | 'usuario' | 'tipoIdentificacion'> 
     }): Promise<IEmpleado> {
         try {
             const response: AxiosResponse<ApiResponse<IEmpleado>> = await this.axiosInstance.post('/', data);
@@ -136,7 +135,7 @@ export class EmpleadoService {
         id: number,
         data: {
             usuario?: Partial<IUsuarioEmpleado>;
-            empleado?: Partial<Omit<IEmpleado, 'id' | 'idUsuario' | 'usuario' | 'tipoIdentificacion'>>;
+            empleado?: Partial<Omit<IEmpleado, 'id_empleado' | 'idUsuario' | 'usuario' | 'tipoIdentificacion'>>;
         }
     ): Promise<IEmpleado> {
         try {

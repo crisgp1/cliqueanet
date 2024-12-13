@@ -171,7 +171,7 @@ class DocumentoService {
             formData.append('tipo', documento.tipo);
             formData.append('file', documento.archivo);
             if (documento.id_empleado) {
-                formData.append('id_empleado', documento.id_empleado.toString());
+                formData.append('idEmpleado', documento.id_empleado.toString());
                 if (documento.tipo_documento_empleado) {
                     formData.append('tipo_documento_empleado', documento.tipo_documento_empleado);
                 }

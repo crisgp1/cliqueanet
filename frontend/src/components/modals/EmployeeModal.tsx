@@ -108,20 +108,23 @@ const MAX_DOMICILIO_LENGTH = 200;
 const MIN_AGE = 18;
 
 export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeModalProps) {
-  const [formData, setFormData] = useState<EmployeeFormData>({
-    correo: employee?.usuario?.correo || '',
-    id_rol: employee?.usuario?.id_rol || 0,
+  const getInitialFormData = (emp?: IEmpleado): EmployeeFormData => ({
+    correo: emp?.usuario?.correo || '',
+    id_rol: emp?.usuario?.id_rol || 0,
     password: '',
-    nombre: employee?.nombre || '',
-    idTipoIdentificacion: employee?.idTipoIdentificacion || 0,
-    numIdentificacion: employee?.numIdentificacion || '',
-    curp: employee?.curp || '',
-    fechaNacimiento: employee?.fechaNacimiento ? new Date(employee.fechaNacimiento).toISOString().split('T')[0] : '',
-    telefono: employee?.telefono || '',
-    domicilio: employee?.domicilio || '',
-    fechaContratacion: employee?.fechaContratacion ? new Date(employee.fechaContratacion).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
+    nombre: emp?.nombre || '',
+    idTipoIdentificacion: emp?.idTipoIdentificacion || 0,
+    numIdentificacion: emp?.numIdentificacion || '',
+    curp: emp?.curp || '',
+    fechaNacimiento: emp?.fechaNacimiento ? new Date(emp.fechaNacimiento).toISOString().split('T')[0] : '',
+    telefono: emp?.telefono || '',
+    domicilio: emp?.domicilio || '',
+    fechaContratacion: emp?.fechaContratacion 
+      ? new Date(emp.fechaContratacion).toISOString().split('T')[0] 
+      : new Date().toISOString().split('T')[0]
   });
 
+  const [formData, setFormData] = useState<EmployeeFormData>(getInitialFormData(employee));
   const [roles, setRoles] = useState<RolUsuario[]>([]);
   const [tiposIdentificacion, setTiposIdentificacion] = useState<TipoIdentificacion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -131,6 +134,14 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
   const [documentoSeleccionado, setDocumentoSeleccionado] = useState<string>('');
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Efecto para actualizar el formulario cuando cambia el empleado seleccionado
+  useEffect(() => {
+    if (isOpen) {
+      setFormData(getInitialFormData(employee));
+      setFormErrors({});
+    }
+  }, [isOpen, employee]);
 
   useEffect(() => {
     const loadCatalogs = async () => {
@@ -192,60 +203,50 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
     const fechaContratacion = new Date(formData.fechaContratacion);
     const age = Math.floor((today.getTime() - fechaNacimiento.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
 
-    // Validación de correo
     if (!formData.correo) {
       errors.correo = "El correo es requerido";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.correo)) {
       errors.correo = "El correo no es válido";
     }
 
-    // Validación de rol
     if (!formData.id_rol) {
       errors.id_rol = "El rol es requerido";
     }
 
-    // Validación de contraseña para nuevos empleados
     if (!employee && !formData.password) {
       errors.password = "La contraseña es requerida para nuevos empleados";
     }
 
-    // Validación de nombre
     if (!formData.nombre) {
       errors.nombre = "El nombre es requerido";
     }
 
-    // Validación de tipo de identificación
     if (!formData.idTipoIdentificacion) {
       errors.idTipoIdentificacion = "El tipo de identificación es requerido";
     }
 
-    // Validación de número de identificación
     if (!formData.numIdentificacion) {
       errors.numIdentificacion = "El número de identificación es requerido";
     }
 
-    // Validación de CURP
     if (!formData.curp) {
       errors.curp = "El CURP es requerido";
     } else if (!/^[A-Z]{4}[0-9]{6}[HM][A-Z]{5}[0-9A-Z][0-9]$/.test(formData.curp)) {
       errors.curp = "El CURP no tiene el formato correcto";
     }
 
-    // Validación de fecha de nacimiento
     if (!formData.fechaNacimiento) {
       errors.fechaNacimiento = "La fecha de nacimiento es requerida";
     } else if (age < MIN_AGE) {
       errors.fechaNacimiento = `El empleado debe ser mayor de ${MIN_AGE} años`;
     }
 
-    // Validación de teléfono
     if (!formData.telefono) {
       errors.telefono = "El teléfono es requerido";
     } else if (!/^[0-9]{10}$/.test(formData.telefono)) {
       errors.telefono = "El teléfono debe tener 10 dígitos";
     }
 
-    // Validación de domicilio
     if (!formData.domicilio) {
       errors.domicilio = "El domicilio es requerido";
     } else if (formData.domicilio.length < MIN_DOMICILIO_LENGTH) {
@@ -254,7 +255,6 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
       errors.domicilio = `El domicilio no puede exceder ${MAX_DOMICILIO_LENGTH} caracteres`;
     }
 
-    // Validación de fecha de contratación
     if (!formData.fechaContratacion) {
       errors.fechaContratacion = "La fecha de contratación es requerida";
     } else if (fechaContratacion > today) {
@@ -281,7 +281,6 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
     try {
       const { correo, id_rol, password, fechaNacimiento, fechaContratacion, ...restEmpleadoData } = formData;
 
-      // Usa directamente el correo ingresado por el usuario
       const data = {
         usuario: {
           correo: formData.correo, 
@@ -320,7 +319,6 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
     }
 
     setFormData(prev => ({ ...prev, [name]: newValue }));
-    // Limpiar el error del campo cuando el usuario empiece a escribir
     if (formErrors[name]) {
       setFormErrors(prev => ({ ...prev, [name]: '' }));
     }

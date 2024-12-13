@@ -3,7 +3,7 @@ import { Op } from 'sequelize';
 import { Transaccion } from './transaccion.model';
 import { Cliente } from './cliente.model';
 import { Vehiculo } from './vehiculo.model';
-import { Usuario } from './usuario.model';
+import { Empleado } from './empleado.model';
 
 // Estados de documento
 export type DocumentoEstado = 'pendiente' | 'aprobado' | 'rechazado';
@@ -158,7 +158,7 @@ export class Documento extends Model {
   })
   id!: number;
 
-  @ForeignKey(() => Usuario)
+  @ForeignKey(() => Empleado)
   @Column({
     type: DataType.INTEGER,
     allowNull: true,
@@ -249,7 +249,6 @@ export class Documento extends Model {
   })
   estado!: DocumentoEstado;
 
-  // Nuevos campos
   @Column({
     type: DataType.STRING(255),
     allowNull: true,
@@ -334,19 +333,19 @@ export class Documento extends Model {
   tipoDocumentoTransaccion?: TipoDocumentoTransaccion;
 
   // Relaciones
-  @BelongsTo(() => Usuario, { foreignKey: 'id_empleado', as: 'usuarioDocumento' })
-  usuario?: Usuario;
+  @BelongsTo(() => Empleado, { foreignKey: 'id_empleado', as: 'empleado' })
+  empleado?: Empleado;
 
-  @BelongsTo(() => Cliente, { foreignKey: 'id_cliente', as: 'clienteDocumento' })
+  @BelongsTo(() => Cliente, { foreignKey: 'id_cliente', as: 'cliente' })
   cliente?: Cliente;
 
-  @BelongsTo(() => Vehiculo, { foreignKey: 'id_vehiculo', as: 'vehiculoDocumento' })
+  @BelongsTo(() => Vehiculo, { foreignKey: 'id_vehiculo', as: 'vehiculo' })
   vehiculo?: Vehiculo;
 
   @BelongsTo(() => Transaccion, {
     foreignKey: 'id_transaccion',
     targetKey: 'id',
-    as: 'transaccionDocumento',
+    as: 'transaccion',
     constraints: false
   })
   transaccion?: Transaccion;
@@ -368,7 +367,6 @@ export class Documento extends Model {
   // Método para cambiar el estado del documento
   async cambiarEstado(nuevoEstado: DocumentoEstado, idUsuario: number, comentario?: string): Promise<void> {
     this.estado = nuevoEstado;
-    this.idEmpleado = idUsuario;
     if (comentario) {
       this.descripcion = this.descripcion 
         ? `${this.descripcion}\n[${new Date().toISOString()}] ${comentario}`
@@ -387,9 +385,9 @@ export class Documento extends Model {
       return this.idEmpleado === idUsuario;
     }
 
-    const usuario = await Usuario.findByPk(idUsuario);
-    if (!usuario) return false;
-    return [1, 2].includes(usuario.id_rol);
+    const empleado = await Empleado.findByPk(idUsuario);
+    if (!empleado?.usuario) return false;
+    return [1, 2].includes(empleado.usuario.id_rol);
   }
 
   // Método para validar el documento según su tipo
@@ -447,9 +445,9 @@ export class Documento extends Model {
     return await this.findAll({
       where,
       include: [
-        { model: Usuario, as: 'usuarioDocumento' },
-        { model: Cliente, as: 'clienteDocumento' },
-        { model: Vehiculo, as: 'vehiculoDocumento' }
+        { model: Empleado, as: 'empleado' },
+        { model: Cliente, as: 'cliente' },
+        { model: Vehiculo, as: 'vehiculo' }
       ],
       order: [['fecha_subida', 'DESC']]
     });
@@ -465,9 +463,9 @@ export class Documento extends Model {
         }
       },
       include: [
-        { model: Usuario, as: 'usuarioDocumento' },
-        { model: Cliente, as: 'clienteDocumento' },
-        { model: Vehiculo, as: 'vehiculoDocumento' }
+        { model: Empleado, as: 'empleado' },
+        { model: Cliente, as: 'cliente' },
+        { model: Vehiculo, as: 'vehiculo' }
       ],
       order: [['fecha_subida', 'ASC']]
     });

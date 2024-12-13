@@ -46,13 +46,13 @@ export default function EmployeesPage() {
       const empleadosConDocs = await Promise.all(
         empleadosData.map(async (emp) => {
           try {
-            const docsInfo = await documentoService.obtenerDocumentosPorEmpleado(emp.id_empleado!);
+            const docsInfo = await documentoService.obtenerDocumentosPorEmpleado(emp.id!);
             return {
               ...emp,
               documentosInfo: docsInfo
             };
           } catch (error) {
-            console.error(`Error al obtener documentos del empleado ${emp.id_empleado}:`, error);
+            console.error(`Error al obtener documentos del empleado ${emp.id}:`, error);
             return emp;
           }
         })
@@ -114,15 +114,15 @@ export default function EmployeesPage() {
   const filteredEmployees = employees.filter(employee =>
     employee.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
     employee.usuario?.correo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.num_empleado?.toLowerCase().includes(searchTerm.toLowerCase())
+    employee.numEmpleado?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleSave = async (data: { usuario: IUsuarioEmpleado; empleado: Omit<IEmpleado, 'id_empleado' | 'usuario'> }) => {
+  const handleSave = async (data: { usuario: IUsuarioEmpleado; empleado: Omit<IEmpleado, 'id' | 'usuario'> }) => {
     try {
-      if (selectedEmployee?.id_empleado) {
-        const updatedEmployee = await empleadoService.actualizarEmpleado(selectedEmployee.id_empleado, data);
+      if (selectedEmployee?.id) {
+        const updatedEmployee = await empleadoService.actualizarEmpleado(selectedEmployee.id, data);
         setEmployees(employees.map(emp => 
-          emp.id_empleado === selectedEmployee.id_empleado 
+          emp.id === selectedEmployee.id 
             ? { ...updatedEmployee, documentosInfo: emp.documentosInfo }
             : emp
         ));
@@ -157,25 +157,29 @@ export default function EmployeesPage() {
 
   const handleToggleStatus = async (employee: EmployeeWithDocuments) => {
     try {
+      if (!employee.id) {
+        throw new Error('ID de empleado no válido');
+      }
+
       if (employee.usuario?.is_active) {
-        await empleadoService.desactivarEmpleado(employee.id_empleado!);
+        await empleadoService.desactivarEmpleado(employee.id);
         toast({
           title: "Éxito",
           description: "Empleado desactivado correctamente"
         });
       } else {
-        await empleadoService.reactivarEmpleado(employee.id_empleado!);
+        await empleadoService.reactivarEmpleado(employee.id);
         toast({
           title: "Éxito",
           description: "Empleado reactivado correctamente"
         });
       }
       await loadEmployees();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al cambiar estado del empleado:', error);
       toast({
         title: "Error",
-        description: "No se pudo cambiar el estado del empleado",
+        description: error.message || "No se pudo cambiar el estado del empleado",
         variant: "destructive"
       });
     }
@@ -252,8 +256,8 @@ export default function EmployeesPage() {
                 {filteredEmployees.map((employee) => {
                   const status = getDocumentStatus(employee);
                   return (
-                    <TableRow key={employee.id_empleado}>
-                      <TableCell className="font-medium">{employee.num_empleado || '-'}</TableCell>
+                    <TableRow key={employee.id}>
+                      <TableCell className="font-medium">{employee.numEmpleado || '-'}</TableCell>
                       <TableCell>{employee.nombre}</TableCell>
                       <TableCell>{employee.usuario?.correo}</TableCell>
                       <TableCell>{employee.telefono}</TableCell>
