@@ -281,14 +281,10 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
     try {
       const { correo, id_rol, password, fechaNacimiento, fechaContratacion, ...restEmpleadoData } = formData;
 
-      // Generar correo único basado en el nombre y timestamp
-      const timestamp = Date.now();
-      const nombreNormalizado = formData.nombre.toLowerCase().replace(/\s+/g, '.');
-      const correoUnico = `${nombreNormalizado}.${timestamp}@cliqueanet.com`;
-
+      // Usa directamente el correo ingresado por el usuario
       const data = {
         usuario: {
-          correo: correoUnico,
+          correo: formData.correo, 
           id_rol,
           ...(password && { password })
         },
