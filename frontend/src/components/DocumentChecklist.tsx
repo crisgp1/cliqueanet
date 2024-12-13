@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, ChangeEvent } from 'react';
 import { Check, Upload } from 'lucide-react';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
 
 interface DocumentItem {
   id: string;
@@ -14,10 +14,17 @@ interface DocumentItem {
 
 interface DocumentChecklistProps {
   tipoPersona: 'Física' | 'Moral';
+  tipoTransaccion?: 'VENTA' | 'CREDITO' | 'CONSIGNACION';
   onDocumentsChange: (documents: { file: File; description: string }[]) => void;
 }
 
-export function DocumentChecklist({ tipoPersona, onDocumentsChange }: DocumentChecklistProps) {
+const DOCUMENTOS_REQUERIDOS = {
+  VENTA: ['Identificación', 'Comprobante de Domicilio', 'Factura', 'Contrato'],
+  CREDITO: ['Identificación', 'Comprobante de Domicilio', 'Comprobante de Ingresos', 'Estado de Cuenta'],
+  CONSIGNACION: ['Identificación', 'Comprobante de Domicilio', 'Carta Responsiva', 'Contrato']
+} as const;
+
+export function DocumentChecklist({ tipoPersona, tipoTransaccion, onDocumentsChange }: DocumentChecklistProps) {
   const getInitialDocuments = (): DocumentItem[] => {
     const commonDocuments = [
       {
@@ -37,6 +44,72 @@ export function DocumentChecklist({ tipoPersona, onDocumentsChange }: DocumentCh
         description: ''
       }
     ];
+
+    if (tipoTransaccion) {
+      const documentosRequeridos = DOCUMENTOS_REQUERIDOS[tipoTransaccion];
+      const additionalDocs: DocumentItem[] = [];
+
+      if (tipoTransaccion === 'VENTA') {
+        additionalDocs.push(
+          {
+            id: 'factura',
+            name: 'Factura',
+            required: true,
+            uploaded: false,
+            file: null,
+            description: ''
+          },
+          {
+            id: 'contrato_venta',
+            name: 'Contrato de Compra-Venta',
+            required: true,
+            uploaded: false,
+            file: null,
+            description: ''
+          }
+        );
+      } else if (tipoTransaccion === 'CREDITO') {
+        additionalDocs.push(
+          {
+            id: 'comprobante_ingresos',
+            name: 'Comprobante de Ingresos',
+            required: true,
+            uploaded: false,
+            file: null,
+            description: ''
+          },
+          {
+            id: 'estado_cuenta',
+            name: 'Estado de Cuenta',
+            required: true,
+            uploaded: false,
+            file: null,
+            description: ''
+          }
+        );
+      } else if (tipoTransaccion === 'CONSIGNACION') {
+        additionalDocs.push(
+          {
+            id: 'carta_responsiva',
+            name: 'Carta Responsiva',
+            required: true,
+            uploaded: false,
+            file: null,
+            description: ''
+          },
+          {
+            id: 'contrato_consignacion',
+            name: 'Contrato de Consignación',
+            required: true,
+            uploaded: false,
+            file: null,
+            description: ''
+          }
+        );
+      }
+
+      return [...commonDocuments, ...additionalDocs];
+    }
 
     if (tipoPersona === 'Moral') {
       return [
@@ -81,6 +154,10 @@ export function DocumentChecklist({ tipoPersona, onDocumentsChange }: DocumentCh
 
   const [documents, setDocuments] = useState<DocumentItem[]>(getInitialDocuments());
   const [customDocuments, setCustomDocuments] = useState<DocumentItem[]>([]);
+
+  useEffect(() => {
+    setDocuments(getInitialDocuments());
+  }, [tipoTransaccion, tipoPersona]);
 
   const handleFileChange = (id: string, file: File | null, isCustom: boolean = false) => {
     const updateDocuments = (docs: DocumentItem[]) =>
@@ -168,14 +245,15 @@ export function DocumentChecklist({ tipoPersona, onDocumentsChange }: DocumentCh
           type="text"
           placeholder="Descripción del documento"
           value={doc.description}
-          onChange={(e) => handleDescriptionChange(doc.id, e.target.value, isCustom)}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => handleDescriptionChange(doc.id, e.target.value, isCustom)}
           className="w-full"
         />
         <div className="flex items-center space-x-2">
           <Input
             type="file"
-            onChange={(e) => handleFileChange(doc.id, e.target.files?.[0] || null, isCustom)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => handleFileChange(doc.id, e.target.files?.[0] || null, isCustom)}
             className="flex-1"
+            accept=".pdf,.jpg,.png,.xml"
           />
           {doc.uploaded && (
             <span className="text-sm text-green-500">

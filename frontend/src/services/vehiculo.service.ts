@@ -1,6 +1,5 @@
 import axios from 'axios';
-
-const API_URL = 'http://localhost:3001';
+import { API_BASE_URL } from '../config/api.config';
 
 export interface Vehiculo {
     id_vehiculo: number;
@@ -45,7 +44,6 @@ export interface UpdateVehiculoDto {
     comentarios_internos?: string;
 }
 
-// Función para transformar de snake_case a camelCase
 const toBackendFormat = (data: any) => {
     const transformed: any = {};
     Object.entries(data).forEach(([key, value]) => {
@@ -55,7 +53,6 @@ const toBackendFormat = (data: any) => {
     return transformed;
 };
 
-// Función para transformar de camelCase a snake_case
 const toFrontendFormat = (data: any) => {
     const transformed: any = {};
     Object.entries(data).forEach(([key, value]) => {
@@ -65,97 +62,109 @@ const toFrontendFormat = (data: any) => {
     return transformed;
 };
 
-class VehiculoService {
-    async getAll(): Promise<Vehiculo[]> {
+export class VehiculoService {
+    private static instance: VehiculoService;
+    private baseUrl: string;
+
+    private constructor() {
+        this.baseUrl = `${API_BASE_URL}/vehiculos`;
+    }
+
+    public static getInstance(): VehiculoService {
+        if (!VehiculoService.instance) {
+            VehiculoService.instance = new VehiculoService();
+        }
+        return VehiculoService.instance;
+    }
+
+    public async getAll(): Promise<Vehiculo[]> {
         try {
-            const response = await axios.get<any[]>(`${API_URL}/vehiculos`);
+            const response = await axios.get<any[]>(this.baseUrl);
             return response.data.map(vehiculo => toFrontendFormat(vehiculo));
         } catch (error) {
-            console.error('Error al obtener vehículos:', error);
-            throw error;
+            throw this.handleError(error);
         }
     }
 
-    async getById(id: number): Promise<Vehiculo> {
+    public async getById(id: number): Promise<Vehiculo> {
         try {
-            const response = await axios.get<any>(`${API_URL}/vehiculos/${id}`);
+            const response = await axios.get<any>(`${this.baseUrl}/${id}`);
             return toFrontendFormat(response.data);
         } catch (error) {
-            console.error(`Error al obtener vehículo ${id}:`, error);
-            throw error;
+            throw this.handleError(error);
         }
     }
 
-    async create(vehiculo: CreateVehiculoDto): Promise<Vehiculo> {
+    public async create(vehiculo: CreateVehiculoDto): Promise<Vehiculo> {
         try {
-            const response = await axios.post<any>(
-                `${API_URL}/vehiculos`,
-                toBackendFormat(vehiculo)
-            );
+            const response = await axios.post<any>(this.baseUrl, toBackendFormat(vehiculo));
             return toFrontendFormat(response.data);
         } catch (error) {
-            console.error('Error al crear vehículo:', error);
-            throw error;
+            throw this.handleError(error);
         }
     }
 
-    async update(id: number, vehiculo: UpdateVehiculoDto): Promise<Vehiculo> {
+    public async update(id: number, vehiculo: UpdateVehiculoDto): Promise<Vehiculo> {
         try {
-            const response = await axios.put<any>(
-                `${API_URL}/vehiculos/${id}`,
-                toBackendFormat(vehiculo)
-            );
+            const response = await axios.put<any>(`${this.baseUrl}/${id}`, toBackendFormat(vehiculo));
             return toFrontendFormat(response.data);
         } catch (error) {
-            console.error(`Error al actualizar vehículo ${id}:`, error);
-            throw error;
+            throw this.handleError(error);
         }
     }
 
-    async delete(id: number): Promise<void> {
+    public async delete(id: number): Promise<void> {
         try {
-            await axios.delete(`${API_URL}/vehiculos/${id}`);
+            await axios.delete(`${this.baseUrl}/${id}`);
         } catch (error) {
-            console.error(`Error al eliminar vehículo ${id}:`, error);
-            throw error;
+            throw this.handleError(error);
         }
     }
 
-    async getByNumSerie(numSerie: string): Promise<Vehiculo | null> {
+    public async getByNumSerie(numSerie: string): Promise<Vehiculo | null> {
         try {
-            const response = await axios.get<any[]>(`${API_URL}/vehiculos`, {
+            const response = await axios.get<any[]>(this.baseUrl, {
                 params: { numSerie: toBackendFormat({ num_serie: numSerie }).numSerie }
             });
             return response.data[0] ? toFrontendFormat(response.data[0]) : null;
         } catch (error) {
-            console.error(`Error al buscar vehículo por número de serie ${numSerie}:`, error);
-            throw error;
+            throw this.handleError(error);
         }
     }
 
-    async getByPlacas(placas: string): Promise<Vehiculo | null> {
+    public async getByPlacas(placas: string): Promise<Vehiculo | null> {
         try {
-            const response = await axios.get<any[]>(`${API_URL}/vehiculos`, {
+            const response = await axios.get<any[]>(this.baseUrl, {
                 params: { placas }
             });
             return response.data[0] ? toFrontendFormat(response.data[0]) : null;
         } catch (error) {
-            console.error(`Error al buscar vehículo por placas ${placas}:`, error);
-            throw error;
+            throw this.handleError(error);
         }
     }
 
-    async getByNumMotor(numMotor: string): Promise<Vehiculo | null> {
+    public async getByNumMotor(numMotor: string): Promise<Vehiculo | null> {
         try {
-            const response = await axios.get<any[]>(`${API_URL}/vehiculos`, {
+            const response = await axios.get<any[]>(this.baseUrl, {
                 params: { numMotor: toBackendFormat({ num_motor: numMotor }).numMotor }
             });
             return response.data[0] ? toFrontendFormat(response.data[0]) : null;
         } catch (error) {
-            console.error(`Error al buscar vehículo por número de motor ${numMotor}:`, error);
-            throw error;
+            throw this.handleError(error);
+        }
+    }
+
+    private handleError(error: any): Error {
+        if (error.response) {
+            const message = error.response.data.message || 'Error en la solicitud del vehículo';
+            return new Error(message);
+        } else if (error.request) {
+            return new Error('No se recibió respuesta del servidor');
+        } else {
+            return new Error('Error al procesar la solicitud del vehículo');
         }
     }
 }
 
-export default new VehiculoService();
+export const vehiculoService = VehiculoService.getInstance();
+export default vehiculoService;

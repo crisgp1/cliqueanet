@@ -1,10 +1,9 @@
 import axios from 'axios';
 import { TipoTransaccion, ApiResponse } from '../types';
-
-const API_URL = 'http://localhost:3001';
+import { API_BASE_URL } from '../config/api.config';
 
 class TipoTransaccionService {
-  private baseUrl = `${API_URL}/catalogs/tipo-transaccion`;
+  private baseUrl = `${API_BASE_URL}/catalogs/tipos-transaccion`;
 
   async getAll(): Promise<TipoTransaccion[]> {
     try {

@@ -1,0 +1,40 @@
+{
+  "name": "node-twain",
+  "version": "0.0.16",
+  "description": "A TWAIN library for nodejs.",
+  "keywords": [
+    "TWAIN",
+    "node-twain",
+    "scan",
+    "scanner"
+  ],
+  "author": "Luomusha",
+  "license": "ISC",
+  "main": "index.js",
+  "types": "twain.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/luomusha/node-twain.git"
+  },
+  "scripts": {
+    "start": "node-gyp configure build --debug",
+    "tsc": "tsc -w",
+    "test": "jest --watch"
+  },
+  "devDependencies": {
+    "@types/bindings": "^1.5.1",
+    "@types/jest": "^28.1.4",
+    "jest": "^28.1.1",
+    "node-gyp": "^9.0.0",
+    "ts-jest": "^28.0.5",
+    "typescript": "^4.7.4"
+  },
+  "dependencies": {
+    "node-addon-api": "^5.0.0",
+    "bindings": "^1.5.0"
+  },
+  "gypfile": true,
+  "engines": {
+    "node": "~10 >=10.20 || >=12.17"
+  }
+}

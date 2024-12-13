@@ -2,7 +2,7 @@ import axios from 'axios';
 import { LoginResponse, LoginCredentials, LoginHistory } from '../types';
 import { ipService } from './ip.service';
 
-const API_URL = 'http://localhost:3001';
+import { API_BASE_URL } from '../config/api.config';
 
 class AuthService {
   async login(credentials: LoginCredentials): Promise<LoginResponse> {
@@ -23,7 +23,7 @@ class AuthService {
       });
 
       const response = await axios.post<LoginResponse>(
-        `${API_URL}/api/usuarios/login`, 
+        `${API_BASE_URL}/auth/login`, 
         enrichedCredentials
       );
 

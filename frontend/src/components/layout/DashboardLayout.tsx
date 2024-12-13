@@ -12,9 +12,17 @@ import {
   Settings,
   X,
   Pin,
+  Printer,
+  Cog,
 } from 'lucide-react';
 
 interface SidebarItem {
+  title: string;
+  icon: JSX.Element;
+  path: string;
+}
+
+interface SettingsItem {
   title: string;
   icon: JSX.Element;
   path: string;
@@ -26,6 +34,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
   const [isSidebarPinned, setIsSidebarPinned] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
 
   useEffect(() => {
     const checkIfMobile = () => {
@@ -70,6 +79,11 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
     { title: 'Inventario', icon: <Car size={20} />, path: '/intranet/inventory' },
     { title: 'Créditos', icon: <CreditCard size={20} />, path: '/intranet/credits' },
     { title: 'Transacciones', icon: <ClipboardList size={20} />, path: '/intranet/transactions' },
+  ];
+
+  const settingsItems: SettingsItem[] = [
+    { title: 'Configuración General', icon: <Cog size={16} />, path: '/intranet/settings' },
+    { title: 'Configuración del Escáner', icon: <Printer size={16} />, path: '/intranet/settings/scanner' },
   ];
 
   const shouldShowSidebar = isSidebarOpen || (!isSidebarPinned && isHovered);
@@ -191,10 +205,38 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
             </div>
             {shouldShowSidebar && (
               <div className="mt-4 space-y-2">
-                <button className="w-full flex items-center space-x-3 p-2 text-sm text-gray-600 hover:text-blue-600">
-                  <Settings size={16} />
-                  <span>Configuración</span>
-                </button>
+                <div className="relative">
+                  <button 
+                    onClick={() => setShowSettingsMenu(!showSettingsMenu)}
+                    className="w-full flex items-center justify-between space-x-3 p-2 text-sm text-gray-600 hover:text-blue-600"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <Settings size={16} />
+                      <span>Configuración</span>
+                    </div>
+                    <ChevronDown 
+                      size={16} 
+                      className={`transform transition-transform ${showSettingsMenu ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+                  {showSettingsMenu && (
+                    <div className="ml-8 mt-2 space-y-2">
+                      {settingsItems.map((item) => (
+                        <button
+                          key={item.path}
+                          onClick={() => {
+                            navigate(item.path);
+                            if (isMobile) setIsSidebarOpen(false);
+                          }}
+                          className="w-full flex items-center space-x-3 p-2 text-sm text-gray-600 hover:text-blue-600"
+                        >
+                          {item.icon}
+                          <span>{item.title}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <button 
                   onClick={() => navigate('/login')}
                   className="w-full flex items-center space-x-3 p-2 text-sm text-gray-600 hover:text-red-600"

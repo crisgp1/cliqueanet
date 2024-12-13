@@ -1,6 +1,5 @@
 import axios from 'axios';
-
-const API_URL = 'http://localhost:3001/api';
+import { API_BASE_URL } from '../config/api.config';
 
 export interface TipoIdentificacion {
   id: number;
@@ -15,7 +14,7 @@ interface ApiResponse<T> {
 }
 
 class TipoIdentificacionService {
-  private baseUrl = `${API_URL}/catalogs/tipos-identificacion`;
+  private baseUrl = `${API_BASE_URL}/catalogs/tipos-identificacion`;
 
   private getAuthHeader() {
     const token = localStorage.getItem('token');

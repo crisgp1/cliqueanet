@@ -13,6 +13,7 @@ import transaccionRoutes from './src/routes/transaccion.routes';
 import vehiculoRoutes from './src/routes/vehiculo.routes';
 import ventaRoutes from './src/routes/venta.routes';
 import empleadoRoutes from './src/routes/empleado.routes';
+import scannerRoutes from './src/routes/scanner.routes';
 
 // Importar rutas de catálogos
 import tipoTransaccionRoutes from './src/routes/catalogs/tipo-transaccion.routes';
@@ -106,17 +107,17 @@ app.use(express.urlencoded({ extended: true }));
 const uploadsDir = path.join(process.cwd(), 'uploads');
 app.use('/uploads', express.static(uploadsDir));
 
-// Aplicar verificación de token a todas las rutas excepto /api/usuarios/login y /uploads
+// Aplicar verificación de token a todas las rutas excepto /api/auth/login y /uploads
 app.use((req, res, next) => {
   // Excluir la ruta de login y uploads de la verificación de token
-  if (req.path === '/api/usuarios/login' || req.path.startsWith('/uploads/')) {
+  if (req.path === '/api/auth/login' || req.path.startsWith('/uploads/')) {
     return next();
   }
   verificarToken(req, res, next);
 });
 
 // Rutas principales
-app.use('/api/usuarios', usuarioRoutes);
+app.use('/api/auth', usuarioRoutes); // Cambiar la ruta base para coincidir con el frontend
 app.use('/api/citas', citaRoutes);
 app.use('/api/clientes', clienteRoutes);
 app.use('/api/creditos', creditoRoutes);
@@ -126,6 +127,9 @@ app.use('/api/transacciones', transaccionRoutes);
 app.use('/api/vehiculos', vehiculoRoutes);
 app.use('/api/ventas', ventaRoutes);
 app.use('/api/empleados', empleadoRoutes);
+app.use('/api/scanner', scannerRoutes);
+app.use('/api/configure', scannerRoutes);
+app.use('/api/status', scannerRoutes);
 
 // Rutas de catálogos
 app.use('/api/catalogs/tipos-transaccion', tipoTransaccionRoutes);

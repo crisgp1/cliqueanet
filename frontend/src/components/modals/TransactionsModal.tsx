@@ -15,7 +15,9 @@ import vehiculoService, { Vehiculo } from '../../services/vehiculo.service';
 import { authService } from '../../services/auth.service';
 import transaccionService, { CreateTransaccionDto, UpdateTransaccionDto, Transaccion } from '../../services/transaccion.service';
 import tipoTransaccionService from '../../services/tipo-transaccion.service';
+import documentoService from '../../services/documento.service';
 import { TipoTransaccion } from '../../types';
+import { DocumentChecklist } from '../DocumentChecklist';
 
 interface TransaccionModalProps {
   isOpen: boolean;
@@ -46,6 +48,7 @@ export const TransactionsModal: React.FC<TransaccionModalProps> = ({
       idTipoTransaccion: transaccion?.idTipoTransaccion || 0
     }
   });
+  const [documents, setDocuments] = useState<Array<{ file: File; description: string }>>([]);
   const [confirmationInput, setConfirmationInput] = useState('');
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
@@ -82,6 +85,14 @@ export const TransactionsModal: React.FC<TransaccionModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (documents.length === 0) {
+      toast({
+        title: "Error",
+        description: "Debe subir al menos un documento",
+        variant: "destructive"
+      });
+      return;
+    }
     setStep('preview');
   };
 
@@ -95,6 +106,20 @@ export const TransactionsModal: React.FC<TransaccionModalProps> = ({
         } else {
           savedTransaccion = await transaccionService.create(formState.createData);
         }
+
+        // Subir documentos
+        const uploadPromises = documents.map(doc =>
+          documentoService.crearDocumento({
+            nombre: doc.file.name,
+            tipo: doc.file.type,
+            archivo: doc.file,
+            id_transaccion: savedTransaccion.id,
+            fecha_transaccion: new Date(formState.fechaTransaccion)
+          })
+        );
+
+        await Promise.all(uploadPromises);
+
         onSave(savedTransaccion);
         toast({
           title: "Éxito",
@@ -122,6 +147,20 @@ export const TransactionsModal: React.FC<TransaccionModalProps> = ({
         createData: { ...prev.createData, [name]: value }
       }));
     }
+  };
+
+  const handleDocumentsChange = (newDocuments: Array<{ file: File; description: string }>) => {
+    setDocuments(newDocuments);
+  };
+
+  const getTipoTransaccionNombre = (id: number): 'VENTA' | 'CREDITO' | 'CONSIGNACION' | undefined => {
+    const tipo = tiposTransaccion.find(t => t.id === id);
+    if (!tipo) return undefined;
+    
+    if (tipo.nombre.toUpperCase().includes('VENTA')) return 'VENTA';
+    if (tipo.nombre.toUpperCase().includes('CREDITO')) return 'CREDITO';
+    if (tipo.nombre.toUpperCase().includes('CONSIGNACION')) return 'CONSIGNACION';
+    return undefined;
   };
 
   const selectedCliente = clientes.find(c => c.id === Number(formState.createData.idCliente));
@@ -264,6 +303,17 @@ export const TransactionsModal: React.FC<TransaccionModalProps> = ({
                     placeholder="ID del crédito si aplica"
                   />
                 </div>
+
+                {/* Documentos */}
+                <div className="md:col-span-2">
+                  {selectedCliente && formState.createData.idTipoTransaccion && (
+                    <DocumentChecklist
+                      tipoPersona={selectedCliente.tipoPersona}
+                      onDocumentsChange={handleDocumentsChange}
+                      tipoTransaccion={getTipoTransaccionNombre(Number(formState.createData.idTipoTransaccion))}
+                    />
+                  )}
+                </div>
               </div>
             </div>
             <DialogFooter>
@@ -290,6 +340,16 @@ export const TransactionsModal: React.FC<TransaccionModalProps> = ({
                 <p><strong>Vehículo:</strong> {selectedVehiculo?.marca} {selectedVehiculo?.modelo} {selectedVehiculo?.anio}</p>
                 <p><strong>Tipo de Transacción:</strong> {selectedTipoTransaccion?.nombre}</p>
                 {formState.createData.idCredito && <p><strong>ID Crédito:</strong> {formState.createData.idCredito}</p>}
+                <div className="mt-4">
+                  <p><strong>Documentos a subir:</strong></p>
+                  <ul className="list-disc list-inside">
+                    {documents.map((doc, index) => (
+                      <li key={index}>
+                        {doc.file.name} - {doc.description}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
               <Button 
                 onClick={() => setStep('confirm')}

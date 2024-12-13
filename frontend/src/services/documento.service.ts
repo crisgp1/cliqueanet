@@ -1,6 +1,5 @@
 import axios from 'axios';
-
-const API_URL = 'http://localhost:3001';
+import { API_BASE_URL } from '../config/api.config';
 
 export interface Documento {
     id: number;
@@ -45,17 +44,15 @@ export interface GenerarPdfResponse {
 }
 
 class DocumentoService {
-    private baseUrl = `${API_URL}/api/documentos`;
+    private baseUrl = `${API_BASE_URL}/documentos`;
 
-    // Método auxiliar para convertir URLs relativas en absolutas
     private getFullUrl(url: string): string {
         if (url.startsWith('http')) {
             return url;
         }
-        return `${API_URL}${url}`;
+        return `${API_BASE_URL}${url}`;
     }
 
-    // Método auxiliar para procesar documentos y convertir URLs
     private processDocumento(documento: Documento): Documento {
         return {
             ...documento,
@@ -63,14 +60,13 @@ class DocumentoService {
         };
     }
 
-    // Método auxiliar para procesar arrays de documentos
     private processDocumentos(documentos: Documento[]): Documento[] {
         return documentos.map(doc => this.processDocumento(doc));
     }
 
     async obtenerDocumentos(): Promise<Documento[]> {
         try {
-            const response = await axios.get<{ data: Documento[] }>(this.baseUrl);
+            const response = await axios.get<{ data: Documento[] }>(this.baseUrl); 
             return this.processDocumentos(response.data.data);
         } catch (error) {
             console.error('Error al obtener documentos:', error);
@@ -240,6 +236,7 @@ class DocumentoService {
             throw error;
         }
     }
+    
 }
 
 export const documentoService = new DocumentoService();

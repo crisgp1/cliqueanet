@@ -1,6 +1,5 @@
 import axios from 'axios';
-
-const API_URL = 'http://localhost:3001';
+import { API_BASE_URL } from '../config/api.config';
 
 export interface RolUsuario {
   id: number;
@@ -14,7 +13,7 @@ interface ApiResponse<T> {
 }
 
 class RolUsuarioService {
-  private baseUrl = `${API_URL}/catalogs/rol-usuario`;
+  private baseUrl = `${API_BASE_URL}/catalogs/roles-usuario`;
 
   async getAll(): Promise<RolUsuario[]> {
     try {

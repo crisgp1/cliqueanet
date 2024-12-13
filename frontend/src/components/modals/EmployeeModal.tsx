@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { BaseModal } from "../ui/base-modal";
-
+import { toast } from "../ui/use-toast";
 import {
   FileText,
   Upload,
@@ -19,36 +19,30 @@ import {
   Scan
 } from 'lucide-react';
 
-import { toast } from "../ui/use-toast";
 import { empleadoService, IEmpleado, IUsuarioEmpleado } from '../../services/empleado.service';
 import { rolUsuarioService, RolUsuario } from '../../services/rol-usuario.service';
 import { tipoIdentificacionService, TipoIdentificacion } from '../../services/tipo-identificacion.service';
-import { documentoService } from '../../services/documento.service';
+import { documentoService, Documento, CreateDocumentoDto } from '../../services/documento.service';
 
 interface EmployeeModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: { usuario: IUsuarioEmpleado; empleado: Omit<IEmpleado, 'id_empleado' | 'usuario'> }) => void;
+  onSave: (data: { usuario: IUsuarioEmpleado; empleado: Omit<IEmpleado, 'id' | 'usuario' | 'numEmpleado'> }) => void;
   employee?: IEmpleado;
 }
 
 interface EmployeeFormData {
-  // Datos de usuario
   correo: string;
   id_rol: number;
   password?: string;
-  username?: string;
-  // Datos de empleado
   nombre: string;
   idTipoIdentificacion: number;
-  num_identificacion: string;
+  numIdentificacion: string;
   curp: string;
-  fecha_nacimiento: Date;
+  fechaNacimiento: string;
   telefono: string;
   domicilio: string;
-  fecha_contratacion: Date;
-  num_empleado?: string;
-  tipoDocumento?: string;
+  fechaContratacion: string;
 }
 
 interface DocumentoStatus {
@@ -109,23 +103,23 @@ const DOCUMENTOS_REQUERIDOS = [
   }
 ];
 
+const MIN_DOMICILIO_LENGTH = 10;
+const MAX_DOMICILIO_LENGTH = 200;
+const MIN_AGE = 18;
+
 export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeModalProps) {
   const [formData, setFormData] = useState<EmployeeFormData>({
-    // Datos de usuario
     correo: employee?.usuario?.correo || '',
     id_rol: employee?.usuario?.id_rol || 0,
-    username: employee?.usuario?.username || '',
-    // Datos de empleado
+    password: '',
     nombre: employee?.nombre || '',
     idTipoIdentificacion: employee?.idTipoIdentificacion || 0,
-    num_identificacion: employee?.num_identificacion || '',
+    numIdentificacion: employee?.numIdentificacion || '',
     curp: employee?.curp || '',
-    fecha_nacimiento: employee?.fecha_nacimiento ? new Date(employee.fecha_nacimiento) : new Date(),
+    fechaNacimiento: employee?.fechaNacimiento ? new Date(employee.fechaNacimiento).toISOString().split('T')[0] : '',
     telefono: employee?.telefono || '',
     domicilio: employee?.domicilio || '',
-    fecha_contratacion: employee?.fecha_contratacion ? new Date(employee.fecha_contratacion) : new Date(),
-    num_empleado: employee?.num_empleado || '',
-    tipoDocumento: ''
+    fechaContratacion: employee?.fechaContratacion ? new Date(employee.fechaContratacion).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
   });
 
   const [roles, setRoles] = useState<RolUsuario[]>([]);
@@ -135,6 +129,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
   const [isUploading, setIsUploading] = useState(false);
   const [documentosStatus, setDocumentosStatus] = useState<DocumentoStatus[]>([]);
   const [documentoSeleccionado, setDocumentoSeleccionado] = useState<string>('');
+  const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -165,16 +160,16 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
 
   useEffect(() => {
     const cargarDocumentos = async () => {
-      if (employee?.id_empleado) {
+      if (employee?.id) {
         try {
-          const response = await documentoService.obtenerDocumentosPorEmpleado(employee.id_empleado);
+          const response = await documentoService.obtenerDocumentosPorEmpleado(employee.id);
           const statusInicial = DOCUMENTOS_REQUERIDOS.map(doc => ({
             id: doc.id,
             subido: response.documentos.some(d => d.tipo === doc.id),
             url: response.documentos.find(d => d.tipo === doc.id)?.url
           }));
           setDocumentosStatus(statusInicial);
-        } catch (error) {
+        } catch (error: any) {
           console.error('Error al cargar documentos:', error);
           toast({
             title: "Error",
@@ -185,37 +180,132 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
       }
     };
 
-    if (isOpen && employee?.id_empleado) {
+    if (isOpen && employee?.id) {
       cargarDocumentos();
     }
-  }, [isOpen, employee?.id_empleado]);
+  }, [isOpen, employee?.id]);
+
+  const validateForm = (): boolean => {
+    const errors: { [key: string]: string } = {};
+    const today = new Date();
+    const fechaNacimiento = new Date(formData.fechaNacimiento);
+    const fechaContratacion = new Date(formData.fechaContratacion);
+    const age = Math.floor((today.getTime() - fechaNacimiento.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+
+    // Validación de correo
+    if (!formData.correo) {
+      errors.correo = "El correo es requerido";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.correo)) {
+      errors.correo = "El correo no es válido";
+    }
+
+    // Validación de rol
+    if (!formData.id_rol) {
+      errors.id_rol = "El rol es requerido";
+    }
+
+    // Validación de contraseña para nuevos empleados
+    if (!employee && !formData.password) {
+      errors.password = "La contraseña es requerida para nuevos empleados";
+    }
+
+    // Validación de nombre
+    if (!formData.nombre) {
+      errors.nombre = "El nombre es requerido";
+    }
+
+    // Validación de tipo de identificación
+    if (!formData.idTipoIdentificacion) {
+      errors.idTipoIdentificacion = "El tipo de identificación es requerido";
+    }
+
+    // Validación de número de identificación
+    if (!formData.numIdentificacion) {
+      errors.numIdentificacion = "El número de identificación es requerido";
+    }
+
+    // Validación de CURP
+    if (!formData.curp) {
+      errors.curp = "El CURP es requerido";
+    } else if (!/^[A-Z]{4}[0-9]{6}[HM][A-Z]{5}[0-9A-Z][0-9]$/.test(formData.curp)) {
+      errors.curp = "El CURP no tiene el formato correcto";
+    }
+
+    // Validación de fecha de nacimiento
+    if (!formData.fechaNacimiento) {
+      errors.fechaNacimiento = "La fecha de nacimiento es requerida";
+    } else if (age < MIN_AGE) {
+      errors.fechaNacimiento = `El empleado debe ser mayor de ${MIN_AGE} años`;
+    }
+
+    // Validación de teléfono
+    if (!formData.telefono) {
+      errors.telefono = "El teléfono es requerido";
+    } else if (!/^[0-9]{10}$/.test(formData.telefono)) {
+      errors.telefono = "El teléfono debe tener 10 dígitos";
+    }
+
+    // Validación de domicilio
+    if (!formData.domicilio) {
+      errors.domicilio = "El domicilio es requerido";
+    } else if (formData.domicilio.length < MIN_DOMICILIO_LENGTH) {
+      errors.domicilio = `El domicilio debe tener al menos ${MIN_DOMICILIO_LENGTH} caracteres`;
+    } else if (formData.domicilio.length > MAX_DOMICILIO_LENGTH) {
+      errors.domicilio = `El domicilio no puede exceder ${MAX_DOMICILIO_LENGTH} caracteres`;
+    }
+
+    // Validación de fecha de contratación
+    if (!formData.fechaContratacion) {
+      errors.fechaContratacion = "La fecha de contratación es requerida";
+    } else if (fechaContratacion > today) {
+      errors.fechaContratacion = "La fecha de contratación no puede ser futura";
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      toast({
+        title: "Error",
+        description: "Por favor, corrija los errores en el formulario",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsSaving(true);
     try {
-      const { correo, id_rol, password, username, tipoDocumento, ...empleadoData } = formData;
-      
+      const { correo, id_rol, password, fechaNacimiento, fechaContratacion, ...restEmpleadoData } = formData;
+
+      // Generar correo único basado en el nombre y timestamp
+      const timestamp = Date.now();
+      const nombreNormalizado = formData.nombre.toLowerCase().replace(/\s+/g, '.');
+      const correoUnico = `${nombreNormalizado}.${timestamp}@cliqueanet.com`;
+
       const data = {
         usuario: {
-          correo,
+          correo: correoUnico,
           id_rol,
-          ...(password && { password }),
-          ...(username && { username })
+          ...(password && { password })
         },
         empleado: {
-          ...empleadoData,
-          idTipoIdentificacion: formData.idTipoIdentificacion
+          ...restEmpleadoData,
+          fechaNacimiento: new Date(fechaNacimiento),
+          fechaContratacion: new Date(fechaContratacion)
         }
       };
 
       await onSave(data);
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al guardar empleado:', error);
       toast({
         title: "Error",
-        description: "No se pudo guardar el empleado",
+        description: error.message || "No se pudo guardar el empleado",
         variant: "destructive"
       });
     } finally {
@@ -225,15 +315,19 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
-    let newValue: string | number | Date = value;
+    let newValue: string | number = value;
 
     if (name === 'idTipoIdentificacion' || name === 'id_rol') {
       newValue = parseInt(value, 10);
-    } else if (type === 'date') {
-      newValue = new Date(value);
+    } else if (type === 'number') {
+      newValue = parseInt(value, 10);
     }
 
     setFormData(prev => ({ ...prev, [name]: newValue }));
+    // Limpiar el error del campo cuando el usuario empiece a escribir
+    if (formErrors[name]) {
+      setFormErrors(prev => ({ ...prev, [name]: '' }));
+    }
   };
 
   const handleFileUpload = () => {
@@ -260,20 +354,23 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (!files || files.length === 0 || !employee?.id_empleado || !documentoSeleccionado) return;
+    if (!files || files.length === 0 || !employee?.id || !documentoSeleccionado) return;
 
     setIsUploading(true);
     try {
-      const response = await documentoService.crearDocumento({
-        nombre: files[0].name,
+      const archivo = files[0];
+      const documentoDto: CreateDocumentoDto = {
+        nombre: archivo.name,
         tipo: documentoSeleccionado,
-        archivo: files[0],
-        id_empleado: employee.id_empleado
-      });
+        archivo: archivo,
+        id_empleado: employee.id
+      };
 
+      const documento = await documentoService.crearDocumento(documentoDto);
+      
       setDocumentosStatus(prev => prev.map(doc =>
         doc.id === documentoSeleccionado
-          ? { ...doc, subido: true, url: response.url }
+          ? { ...doc, subido: true, url: documento.url }
           : doc
       ));
 
@@ -286,11 +383,11 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
         fileInputRef.current.value = '';
       }
       setDocumentoSeleccionado('');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al subir documento:', error);
       toast({
         title: "Error",
-        description: "No se pudo subir el documento",
+        description: error.message || "No se pudo subir el documento",
         variant: "destructive"
       });
     } finally {
@@ -306,7 +403,6 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
   const modalContent = (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Datos de Usuario */}
         <div className="space-y-2">
           <label htmlFor="correo" className="text-sm font-medium">
             Correo
@@ -318,8 +414,13 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
             value={formData.correo}
             onChange={handleChange}
             required
+            className={formErrors.correo ? 'border-red-500' : ''}
           />
+          {formErrors.correo && (
+            <p className="text-red-500 text-xs">{formErrors.correo}</p>
+          )}
         </div>
+
         <div className="space-y-2">
           <label htmlFor="id_rol" className="text-sm font-medium">
             Rol
@@ -330,7 +431,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
             value={formData.id_rol}
             onChange={handleChange}
             required
-            className="w-full p-2 border rounded-md"
+            className={`w-full p-2 border rounded-md ${formErrors.id_rol ? 'border-red-500' : ''}`}
           >
             <option value="">Seleccione rol</option>
             {roles.map(rol => (
@@ -339,37 +440,31 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
               </option>
             ))}
           </select>
+          {formErrors.id_rol && (
+            <p className="text-red-500 text-xs">{formErrors.id_rol}</p>
+          )}
         </div>
+
         {!employee && (
-          <>
-            <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium">
-                Contraseña
-              </label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                value={formData.password || ''}
-                onChange={handleChange}
-                required={!employee}
-              />
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="username" className="text-sm font-medium">
-                Nombre de Usuario
-              </label>
-              <Input
-                id="username"
-                name="username"
-                value={formData.username || ''}
-                onChange={handleChange}
-              />
-            </div>
-          </>
+          <div className="space-y-2">
+            <label htmlFor="password" className="text-sm font-medium">
+              Contraseña
+            </label>
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              value={formData.password || ''}
+              onChange={handleChange}
+              required={!employee}
+              className={formErrors.password ? 'border-red-500' : ''}
+            />
+            {formErrors.password && (
+              <p className="text-red-500 text-xs">{formErrors.password}</p>
+            )}
+          </div>
         )}
 
-        {/* Datos de Empleado */}
         <div className="space-y-2">
           <label htmlFor="nombre" className="text-sm font-medium">
             Nombre
@@ -380,8 +475,13 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
             value={formData.nombre}
             onChange={handleChange}
             required
+            className={formErrors.nombre ? 'border-red-500' : ''}
           />
+          {formErrors.nombre && (
+            <p className="text-red-500 text-xs">{formErrors.nombre}</p>
+          )}
         </div>
+
         <div className="space-y-2">
           <label htmlFor="idTipoIdentificacion" className="text-sm font-medium">
             Tipo de Identificación
@@ -392,7 +492,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
             value={formData.idTipoIdentificacion}
             onChange={handleChange}
             required
-            className="w-full p-2 border rounded-md"
+            className={`w-full p-2 border rounded-md ${formErrors.idTipoIdentificacion ? 'border-red-500' : ''}`}
           >
             <option value="">Seleccione tipo</option>
             {tiposIdentificacion.map(tipo => (
@@ -401,19 +501,28 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
               </option>
             ))}
           </select>
+          {formErrors.idTipoIdentificacion && (
+            <p className="text-red-500 text-xs">{formErrors.idTipoIdentificacion}</p>
+          )}
         </div>
+
         <div className="space-y-2">
-          <label htmlFor="num_identificacion" className="text-sm font-medium">
+          <label htmlFor="numIdentificacion" className="text-sm font-medium">
             Número de Identificación
           </label>
           <Input
-            id="num_identificacion"
-            name="num_identificacion"
-            value={formData.num_identificacion}
+            id="numIdentificacion"
+            name="numIdentificacion"
+            value={formData.numIdentificacion}
             onChange={handleChange}
             required
+            className={formErrors.numIdentificacion ? 'border-red-500' : ''}
           />
+          {formErrors.numIdentificacion && (
+            <p className="text-red-500 text-xs">{formErrors.numIdentificacion}</p>
+          )}
         </div>
+
         <div className="space-y-2">
           <label htmlFor="curp" className="text-sm font-medium">
             CURP
@@ -427,22 +536,31 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
             maxLength={18}
             pattern="^[A-Z]{4}[0-9]{6}[HM][A-Z]{5}[0-9A-Z][0-9]$"
             title="CURP válida (formato: AAAA000000AAAAAA00)"
-            className="font-mono"
+            className={`font-mono ${formErrors.curp ? 'border-red-500' : ''}`}
           />
+          {formErrors.curp && (
+            <p className="text-red-500 text-xs">{formErrors.curp}</p>
+          )}
         </div>
+
         <div className="space-y-2">
-          <label htmlFor="fecha_nacimiento" className="text-sm font-medium">
+          <label htmlFor="fechaNacimiento" className="text-sm font-medium">
             Fecha Nacimiento
           </label>
           <Input
-            id="fecha_nacimiento"
-            name="fecha_nacimiento"
+            id="fechaNacimiento"
+            name="fechaNacimiento"
             type="date"
-            value={formData.fecha_nacimiento.toISOString().split('T')[0]}
+            value={formData.fechaNacimiento}
             onChange={handleChange}
             required
+            className={formErrors.fechaNacimiento ? 'border-red-500' : ''}
           />
+          {formErrors.fechaNacimiento && (
+            <p className="text-red-500 text-xs">{formErrors.fechaNacimiento}</p>
+          )}
         </div>
+
         <div className="space-y-2">
           <label htmlFor="telefono" className="text-sm font-medium">
             Teléfono
@@ -453,8 +571,15 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
             value={formData.telefono}
             onChange={handleChange}
             required
+            pattern="[0-9]{10}"
+            title="Teléfono a 10 dígitos"
+            className={formErrors.telefono ? 'border-red-500' : ''}
           />
+          {formErrors.telefono && (
+            <p className="text-red-500 text-xs">{formErrors.telefono}</p>
+          )}
         </div>
+
         <div className="space-y-2">
           <label htmlFor="domicilio" className="text-sm font-medium">
             Domicilio
@@ -465,35 +590,39 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
             value={formData.domicilio}
             onChange={handleChange}
             required
+            minLength={MIN_DOMICILIO_LENGTH}
+            maxLength={MAX_DOMICILIO_LENGTH}
+            className={formErrors.domicilio ? 'border-red-500' : ''}
           />
+          {formErrors.domicilio && (
+            <p className="text-red-500 text-xs">{formErrors.domicilio}</p>
+          )}
+          <p className="text-xs text-gray-500">
+            {`El domicilio debe tener entre ${MIN_DOMICILIO_LENGTH} y ${MAX_DOMICILIO_LENGTH} caracteres`}
+          </p>
         </div>
+
         <div className="space-y-2">
-          <label htmlFor="fecha_contratacion" className="text-sm font-medium">
+          <label htmlFor="fechaContratacion" className="text-sm font-medium">
             Fecha de Contratación
           </label>
           <Input
-            id="fecha_contratacion"
-            name="fecha_contratacion"
+            id="fechaContratacion"
+            name="fechaContratacion"
             type="date"
-            value={formData.fecha_contratacion.toISOString().split('T')[0]}
+            value={formData.fechaContratacion}
             onChange={handleChange}
             required
+            max={new Date().toISOString().split('T')[0]}
+            className={formErrors.fechaContratacion ? 'border-red-500' : ''}
           />
-        </div>
-        <div className="space-y-2">
-          <label htmlFor="num_empleado" className="text-sm font-medium">
-            Número de Empleado
-          </label>
-          <Input
-            id="num_empleado"
-            name="num_empleado"
-            value={formData.num_empleado || ''}
-            onChange={handleChange}
-          />
+          {formErrors.fechaContratacion && (
+            <p className="text-red-500 text-xs">{formErrors.fechaContratacion}</p>
+          )}
         </div>
       </div>
 
-      {employee?.id_empleado && (
+      {employee?.id && (
         <div className="border rounded-lg p-4 mt-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
             <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -514,7 +643,8 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {DOCUMENTOS_REQUERIDOS.map(doc => {
-              const isSubido = documentosStatus.find(d => d.id === doc.id)?.subido;
+              const documento = documentosStatus.find(d => d.id === doc.id);
+              const isSubido = documento?.subido;
               const IconComponent = doc.icon;
 
               return (
@@ -563,7 +693,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
                           variant="ghost"
                           size="sm"
                           className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                          onClick={() => window.open(documentosStatus.find(d => d.id === doc.id)?.url, '_blank')}
+                          onClick={() => window.open(documento?.url, '_blank')}
                         >
                           <FileText className="h-4 w-4 mr-1" />
                           Ver
@@ -616,7 +746,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, employee }: EmployeeMod
       <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
         Cancelar
       </Button>
-      <Button type="submit" onClick={handleSubmit} disabled={isSaving}>
+      <Button type="submit" onClick={handleSubmit} disabled={isSaving || isUploading}>
         {isSaving ? 'Guardando...' : employee ? 'Guardar Cambios' : 'Crear Empleado'}
       </Button>
     </>

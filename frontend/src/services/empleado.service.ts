@@ -1,4 +1,5 @@
-const API_URL = 'http://localhost:3001';
+import axios, { AxiosInstance, AxiosResponse } from 'axios';
+import { API_BASE_URL } from '../config/api.config';
 
 export interface IUsuarioEmpleado {
     correo: string;
@@ -14,17 +15,17 @@ export interface IUsuarioEmpleado {
 }
 
 export interface IEmpleado {
-    id_empleado?: number;
-    id_usuario?: number;
-    id_tipo_identificacion: number;
+    id?: number;
+    idUsuario?: number;
+    idTipoIdentificacion: number;
     nombre: string;
-    num_identificacion: string;
-    fecha_nacimiento: Date;
+    numIdentificacion: string;
+    fechaNacimiento: Date;
     telefono: string;
     curp: string;
     domicilio: string;
-    fecha_contratacion: Date;
-    num_empleado?: string;
+    fechaContratacion: Date;
+    numEmpleado?: string;
     usuario?: IUsuarioEmpleado;
     tipoIdentificacion?: {
         id_tipo_identificacion: number;
@@ -41,10 +42,26 @@ interface ApiResponse<T> {
 
 export class EmpleadoService {
     private static instance: EmpleadoService;
+    private axiosInstance: AxiosInstance;
     private baseUrl: string;
 
     private constructor() {
-        this.baseUrl = `${API_URL}/api/empleados`;
+        this.baseUrl = `${API_BASE_URL}/empleados`;
+        this.axiosInstance = axios.create({
+            baseURL: this.baseUrl,
+            headers: this.getAuthHeaders(),
+        });
+
+        // Interceptor para añadir el token a cada solicitud
+        this.axiosInstance.interceptors.request.use(config => {
+            const token = localStorage.getItem('token');
+            if (token) {
+                config.headers['Authorization'] = `Bearer ${token}`;
+            }
+            return config;
+        }, error => {
+            return Promise.reject(error);
+        });
     }
 
     public static getInstance(): EmpleadoService {
@@ -54,7 +71,7 @@ export class EmpleadoService {
         return EmpleadoService.instance;
     }
 
-    private getAuthHeaders(): HeadersInit {
+    private getAuthHeaders() {
         const token = localStorage.getItem('token');
         return {
             'Authorization': `Bearer ${token || ''}`,
@@ -62,14 +79,27 @@ export class EmpleadoService {
         };
     }
 
+    private handleError(error: any): Error {
+        if (axios.isAxiosError(error)) {
+            if (error.response) {
+                const message = error.response.data.message || 'Error en la solicitud del empleado';
+                return new Error(message);
+            } else if (error.request) {
+                return new Error('No se recibió respuesta del servidor');
+            } else {
+                return new Error('Error al procesar la solicitud del empleado');
+            }
+        }
+        return new Error('Error desconocido al procesar la solicitud del empleado');
+    }
+
     public async obtenerEmpleados(): Promise<IEmpleado[]> {
         try {
-            const response = await fetch(this.baseUrl, {
-                headers: this.getAuthHeaders()
-            });
-            await this.handleResponseErrors(response);
-            const result: ApiResponse<IEmpleado[]> = await response.json();
-            return result.data;
+            const response: AxiosResponse<ApiResponse<IEmpleado[]>> = await this.axiosInstance.get('/');
+            if (response.data.success) {
+                return response.data.data;
+            }
+            throw new Error(response.data.message || 'Error al obtener empleados');
         } catch (error) {
             throw this.handleError(error);
         }
@@ -77,12 +107,11 @@ export class EmpleadoService {
 
     public async obtenerEmpleadoPorId(id: number): Promise<IEmpleado> {
         try {
-            const response = await fetch(`${this.baseUrl}/${id}`, {
-                headers: this.getAuthHeaders()
-            });
-            await this.handleResponseErrors(response);
-            const result: ApiResponse<IEmpleado> = await response.json();
-            return result.data;
+            const response: AxiosResponse<ApiResponse<IEmpleado>> = await this.axiosInstance.get(`/${id}`);
+            if (response.data.success) {
+                return response.data.data;
+            }
+            throw new Error(response.data.message || 'Error al obtener el empleado');
         } catch (error) {
             throw this.handleError(error);
         }
@@ -90,17 +119,14 @@ export class EmpleadoService {
 
     public async crearEmpleado(data: { 
         usuario: IUsuarioEmpleado; 
-        empleado: Omit<IEmpleado, 'id_empleado' | 'id_usuario' | 'usuario' | 'tipoIdentificacion'> 
+        empleado: Omit<IEmpleado, 'id' | 'idUsuario' | 'usuario' | 'tipoIdentificacion'> 
     }): Promise<IEmpleado> {
         try {
-            const response = await fetch(this.baseUrl, {
-                method: 'POST',
-                headers: this.getAuthHeaders(),
-                body: JSON.stringify(data)
-            });
-            await this.handleResponseErrors(response);
-            const result: ApiResponse<IEmpleado> = await response.json();
-            return result.data;
+            const response: AxiosResponse<ApiResponse<IEmpleado>> = await this.axiosInstance.post('/', data);
+            if (response.data.success) {
+                return response.data.data;
+            }
+            throw new Error(response.data.message || 'Error al crear el empleado');
         } catch (error) {
             throw this.handleError(error);
         }
@@ -110,18 +136,15 @@ export class EmpleadoService {
         id: number,
         data: {
             usuario?: Partial<IUsuarioEmpleado>;
-            empleado?: Partial<Omit<IEmpleado, 'id_empleado' | 'id_usuario' | 'usuario' | 'tipoIdentificacion'>>;
+            empleado?: Partial<Omit<IEmpleado, 'id' | 'idUsuario' | 'usuario' | 'tipoIdentificacion'>>;
         }
     ): Promise<IEmpleado> {
         try {
-            const response = await fetch(`${this.baseUrl}/${id}`, {
-                method: 'PUT',
-                headers: this.getAuthHeaders(),
-                body: JSON.stringify(data)
-            });
-            await this.handleResponseErrors(response);
-            const result: ApiResponse<IEmpleado> = await response.json();
-            return result.data;
+            const response: AxiosResponse<ApiResponse<IEmpleado>> = await this.axiosInstance.put(`/${id}`, data);
+            if (response.data.success) {
+                return response.data.data;
+            }
+            throw new Error(response.data.message || 'Error al actualizar el empleado');
         } catch (error) {
             throw this.handleError(error);
         }
@@ -129,11 +152,10 @@ export class EmpleadoService {
 
     public async desactivarEmpleado(id: number): Promise<void> {
         try {
-            const response = await fetch(`${this.baseUrl}/${id}/desactivar`, {
-                method: 'PUT',
-                headers: this.getAuthHeaders()
-            });
-            await this.handleResponseErrors(response);
+            const response: AxiosResponse<ApiResponse<null>> = await this.axiosInstance.put(`/${id}/desactivar`);
+            if (!response.data.success) {
+                throw new Error(response.data.message || 'Error al desactivar el empleado');
+            }
         } catch (error) {
             throw this.handleError(error);
         }
@@ -141,11 +163,10 @@ export class EmpleadoService {
 
     public async reactivarEmpleado(id: number): Promise<void> {
         try {
-            const response = await fetch(`${this.baseUrl}/${id}/reactivar`, {
-                method: 'PUT',
-                headers: this.getAuthHeaders()
-            });
-            await this.handleResponseErrors(response);
+            const response: AxiosResponse<ApiResponse<null>> = await this.axiosInstance.put(`/${id}/reactivar`);
+            if (!response.data.success) {
+                throw new Error(response.data.message || 'Error al reactivar el empleado');
+            }
         } catch (error) {
             throw this.handleError(error);
         }
@@ -156,37 +177,13 @@ export class EmpleadoService {
         passwords: { passwordActual: string; passwordNuevo: string; confirmarPassword: string }
     ): Promise<void> {
         try {
-            const response = await fetch(`${this.baseUrl}/${id}/password`, {
-                method: 'PUT',
-                headers: this.getAuthHeaders(),
-                body: JSON.stringify(passwords)
-            });
-            await this.handleResponseErrors(response);
+            const response: AxiosResponse<ApiResponse<null>> = await this.axiosInstance.put(`/${id}/password`, passwords);
+            if (!response.data.success) {
+                throw new Error(response.data.message || 'Error al cambiar la contraseña');
+            }
         } catch (error) {
             throw this.handleError(error);
         }
-    }
-
-    private async handleResponseErrors(response: Response) {
-        if (!response.ok) {
-            let errorMessage = 'Error en la solicitud del empleado';
-            try {
-                const errorData = await response.json();
-                if (errorData && errorData.message) {
-                    errorMessage = errorData.message;
-                }
-            } catch {
-                // Si no se puede parsear JSON, dejamos el mensaje por defecto
-            }
-            throw new Error(errorMessage);
-        }
-    }
-
-    private handleError(error: any): Error {
-        if (error instanceof Error) {
-            return error;
-        }
-        return new Error('Error desconocido al procesar la solicitud del empleado');
     }
 }
 

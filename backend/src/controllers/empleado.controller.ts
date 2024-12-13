@@ -5,7 +5,44 @@ import { TipoIdentificacion } from '../models/catalogs/tipo-identificacion.model
 import { Op } from 'sequelize';
 import bcrypt from 'bcrypt';
 
+const MIN_DOMICILIO_LENGTH = 10;
+const MAX_DOMICILIO_LENGTH = 200;
+const MIN_AGE = 18;
+
 export class EmpleadoController {
+    private validateDates(fechaNacimiento: Date, fechaContratacion: Date): string | null {
+        const today = new Date();
+        const age = Math.floor((today.getTime() - fechaNacimiento.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+        
+        if (age < MIN_AGE) {
+            return `El empleado debe ser mayor de ${MIN_AGE} años`;
+        }
+
+        if (fechaContratacion > today) {
+            return 'La fecha de contratación no puede ser futura';
+        }
+
+        return null;
+    }
+
+    private validateDomicilio(domicilio: string): string | null {
+        if (domicilio.length < MIN_DOMICILIO_LENGTH) {
+            return `El domicilio debe tener al menos ${MIN_DOMICILIO_LENGTH} caracteres`;
+        }
+        if (domicilio.length > MAX_DOMICILIO_LENGTH) {
+            return `El domicilio no puede exceder ${MAX_DOMICILIO_LENGTH} caracteres`;
+        }
+        return null;
+    }
+
+    private async validateUniqueEmail(correo: string): Promise<string | null> {
+        const existingUser = await Usuario.findOne({ where: { correo } });
+        if (existingUser) {
+            return 'El correo electrónico ya está registrado';
+        }
+        return null;
+    }
+
     // Obtener todos los empleados con sus datos de usuario
     public async obtenerEmpleados(req: Request, res: Response): Promise<void> {
         try {
@@ -43,7 +80,7 @@ export class EmpleadoController {
         try {
             const { id } = req.params;
             const empleado = await Empleado.findOne({
-                where: { id_empleado: id },
+                where: { id },
                 include: [
                     {
                         model: Usuario,
@@ -84,6 +121,39 @@ export class EmpleadoController {
     public async crearEmpleado(req: Request, res: Response): Promise<void> {
         try {
             const { usuario: usuarioData, empleado: empleadoData } = req.body;
+
+            // Validar fechas
+            const dateError = this.validateDates(
+                new Date(empleadoData.fechaNacimiento),
+                new Date(empleadoData.fechaContratacion)
+            );
+            if (dateError) {
+                res.status(400).json({
+                    success: false,
+                    message: dateError
+                });
+                return;
+            }
+
+            // Validar domicilio
+            const domicilioError = this.validateDomicilio(empleadoData.domicilio);
+            if (domicilioError) {
+                res.status(400).json({
+                    success: false,
+                    message: domicilioError
+                });
+                return;
+            }
+
+            // Validar correo único
+            const emailError = await this.validateUniqueEmail(usuarioData.correo);
+            if (emailError) {
+                res.status(400).json({
+                    success: false,
+                    message: emailError
+                });
+                return;
+            }
             
             // Encriptar contraseña
             const salt = await bcrypt.genSalt(10);
@@ -100,12 +170,12 @@ export class EmpleadoController {
             // Crear empleado asociado al usuario
             const nuevoEmpleado = await Empleado.create({
                 ...empleadoData,
-                id_usuario: nuevoUsuario.id
+                idUsuario: nuevoUsuario.id
             });
 
             // Obtener el empleado con sus relaciones
             const empleadoCompleto = await Empleado.findOne({
-                where: { id_empleado: nuevoEmpleado.id_empleado },
+                where: { id: nuevoEmpleado.id },
                 include: [
                     {
                         model: Usuario,
@@ -126,6 +196,33 @@ export class EmpleadoController {
             });
         } catch (error) {
             console.error('Error al crear empleado:', error);
+            
+            // Si es un error de validación de Sequelize
+            if (error instanceof Error && error.name === 'SequelizeValidationError') {
+                res.status(400).json({
+                    success: false,
+                    message: 'Error de validación',
+                    errors: (error as any).errors.map((e: any) => ({
+                        field: e.path,
+                        message: e.message
+                    }))
+                });
+                return;
+            }
+
+            // Si es un error de unicidad
+            if (error instanceof Error && error.name === 'SequelizeUniqueConstraintError') {
+                res.status(400).json({
+                    success: false,
+                    message: 'Error de unicidad',
+                    errors: (error as any).errors.map((e: any) => ({
+                        field: e.path,
+                        message: e.message
+                    }))
+                });
+                return;
+            }
+
             res.status(500).json({
                 success: false,
                 message: 'Error al crear el empleado',
@@ -141,7 +238,7 @@ export class EmpleadoController {
             const { usuario: usuarioData, empleado: empleadoData } = req.body;
 
             const empleadoExistente = await Empleado.findOne({
-                where: { id_empleado: id },
+                where: { id },
                 include: [
                     {
                         model: Usuario,
@@ -158,6 +255,45 @@ export class EmpleadoController {
                 return;
             }
 
+            // Validar fechas si se están actualizando
+            if (empleadoData.fechaNacimiento || empleadoData.fechaContratacion) {
+                const dateError = this.validateDates(
+                    new Date(empleadoData.fechaNacimiento || empleadoExistente.fechaNacimiento),
+                    new Date(empleadoData.fechaContratacion || empleadoExistente.fechaContratacion)
+                );
+                if (dateError) {
+                    res.status(400).json({
+                        success: false,
+                        message: dateError
+                    });
+                    return;
+                }
+            }
+
+            // Validar domicilio si se está actualizando
+            if (empleadoData.domicilio) {
+                const domicilioError = this.validateDomicilio(empleadoData.domicilio);
+                if (domicilioError) {
+                    res.status(400).json({
+                        success: false,
+                        message: domicilioError
+                    });
+                    return;
+                }
+            }
+
+            // Validar correo único si se está actualizando
+            if (usuarioData?.correo && usuarioData.correo !== empleadoExistente.usuario?.correo) {
+                const emailError = await this.validateUniqueEmail(usuarioData.correo);
+                if (emailError) {
+                    res.status(400).json({
+                        success: false,
+                        message: emailError
+                    });
+                    return;
+                }
+            }
+
             // Actualizar datos del usuario si se proporcionan
             if (usuarioData && empleadoExistente.usuario) {
                 const datosUsuario = { ...usuarioData };
@@ -166,7 +302,7 @@ export class EmpleadoController {
                     datosUsuario.password = await bcrypt.hash(usuarioData.password, salt);
                 }
                 await Usuario.update(datosUsuario, {
-                    where: { id_usuario: empleadoExistente.usuario.id }
+                    where: { id: empleadoExistente.usuario.id }
                 });
             }
 
@@ -175,7 +311,7 @@ export class EmpleadoController {
 
             // Obtener el empleado actualizado con sus relaciones
             const empleadoActualizado = await Empleado.findOne({
-                where: { id_empleado: id },
+                where: { id },
                 include: [
                     {
                         model: Usuario,
@@ -196,6 +332,33 @@ export class EmpleadoController {
             });
         } catch (error) {
             console.error('Error al actualizar empleado:', error);
+            
+            // Si es un error de validación de Sequelize
+            if (error instanceof Error && error.name === 'SequelizeValidationError') {
+                res.status(400).json({
+                    success: false,
+                    message: 'Error de validación',
+                    errors: (error as any).errors.map((e: any) => ({
+                        field: e.path,
+                        message: e.message
+                    }))
+                });
+                return;
+            }
+
+            // Si es un error de unicidad
+            if (error instanceof Error && error.name === 'SequelizeUniqueConstraintError') {
+                res.status(400).json({
+                    success: false,
+                    message: 'Error de unicidad',
+                    errors: (error as any).errors.map((e: any) => ({
+                        field: e.path,
+                        message: e.message
+                    }))
+                });
+                return;
+            }
+
             res.status(500).json({
                 success: false,
                 message: 'Error al actualizar el empleado',
@@ -209,7 +372,7 @@ export class EmpleadoController {
         try {
             const { id } = req.params;
             const empleado = await Empleado.findOne({
-                where: { id_empleado: id },
+                where: { id },
                 include: [{ model: Usuario, as: 'usuario' }]
             });
             
@@ -223,7 +386,7 @@ export class EmpleadoController {
 
             await Usuario.update(
                 { is_active: false },
-                { where: { id_usuario: empleado.usuario.id } }
+                { where: { id: empleado.usuario.id } }
             );
             
             res.status(200).json({
@@ -245,7 +408,7 @@ export class EmpleadoController {
         try {
             const { id } = req.params;
             const empleado = await Empleado.findOne({
-                where: { id_empleado: id },
+                where: { id },
                 include: [{ model: Usuario, as: 'usuario' }]
             });
             
@@ -259,7 +422,7 @@ export class EmpleadoController {
 
             await Usuario.update(
                 { is_active: true },
-                { where: { id_usuario: empleado.usuario.id } }
+                { where: { id: empleado.usuario.id } }
             );
             
             res.status(200).json({

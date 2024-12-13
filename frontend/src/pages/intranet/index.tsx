@@ -7,6 +7,19 @@ import EmployeesPage from './employees';
 import InventoryPage from './inventory';
 import CreditsPage from './credits';
 import TransactionsPage from './transactions';
+import { ScannerConfig } from './settings/ScannerConfig';
+import { authService } from '../../services/auth.service';
+
+// Componente para proteger rutas de administrador
+const AdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const isAdmin = authService.getCurrentUser()?.id_rol === 1;
+  
+  if (!isAdmin) {
+    return <Navigate to="/intranet/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+};
 
 export const Intranet = () => {
   return (
@@ -19,6 +32,16 @@ export const Intranet = () => {
         <Route path="inventory" element={<InventoryPage />} />
         <Route path="credits" element={<CreditsPage />} />
         <Route path="transactions" element={<TransactionsPage />} />
+        
+        {/* Rutas de configuración - solo para administradores */}
+        <Route path="settings">
+          <Route path="scanner" element={
+            <AdminRoute>
+              <ScannerConfig />
+            </AdminRoute>
+          } />
+        </Route>
+
         <Route path="*" element={<Navigate to="." />} />
       </Routes>
     </DashboardLayout>

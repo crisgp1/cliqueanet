@@ -17,21 +17,8 @@ import { IoColorPalette } from 'react-icons/io5';
 import { GiCarWheel } from 'react-icons/gi';
 import { RiFileList3Line, RiFileTextLine } from 'react-icons/ri';
 import { Loader2 } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
-
-interface Vehicle {
-  id_vehiculo: number;
-  marca: string;
-  modelo: string;
-  anio: number;
-  precio: number;
-  num_serie: string;
-  color: string;
-  num_motor: string;
-  num_factura?: string;
-  placas?: string;
-  tarjeta_circulacion?: string;
-}
+import { useToast } from "../ui/use-toast";
+import { Vehiculo, CreateVehiculoDto } from '../../services/vehiculo.service';
 
 interface Document {
   id_documento?: number;
@@ -43,8 +30,8 @@ interface Document {
 interface VehicleModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (vehicle: Omit<Vehicle, 'id_vehiculo'>) => Promise<void>;
-  vehicle?: Vehicle;
+  onSave: (vehicle: CreateVehiculoDto) => Promise<void>;
+  vehicle?: Vehiculo;
 }
 
 export function InventoryModal({ 
@@ -53,6 +40,7 @@ export function InventoryModal({
   onSave, 
   vehicle 
 }: VehicleModalProps) {
+  const { toast } = useToast();
   const [formData, setFormData] = useState({
     marca: '',
     modelo: '',
@@ -149,7 +137,7 @@ export function InventoryModal({
 
     try {
       setIsSubmitting(true);
-      const vehicleData = {
+      const vehicleData: CreateVehiculoDto = {
         marca: formData.marca,
         modelo: formData.modelo,
         anio: Number(formData.anio),
@@ -179,7 +167,6 @@ export function InventoryModal({
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    // Limpiar error cuando el usuario comienza a escribir
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }

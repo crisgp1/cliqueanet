@@ -1,13 +1,12 @@
 import axios from 'axios';
-
-const API_URL =  'http://localhost:3001';
+import { API_BASE_URL } from '../config/api.config';
 
 export class CitaService {
     private static instance: CitaService;
     private baseUrl: string;
 
     private constructor() {
-        this.baseUrl = `${API_URL}/api/citas`;
+        this.baseUrl = `${API_BASE_URL}/citas`;
     }
 
     public static getInstance(): CitaService {

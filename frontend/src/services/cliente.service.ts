@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:3001/api';
+import { API_BASE_URL } from '../config/api.config';
 
 export interface Cliente {
   id: number;
@@ -71,7 +71,7 @@ export interface UpdateClienteDto {
 class ClienteService {
   async getAll(): Promise<Cliente[]> {
     try {
-      const response = await axios.get<Cliente[]>(`${API_URL}/clientes`);
+      const response = await axios.get<Cliente[]>(`${API_BASE_URL}/clientes`);
       return response.data;
     } catch (error) {
       console.error('Error al obtener clientes:', error);
@@ -81,7 +81,7 @@ class ClienteService {
 
   async getById(id: number): Promise<Cliente> {
     try {
-      const response = await axios.get<Cliente>(`${API_URL}/clientes/${id}`);
+      const response = await axios.get<Cliente>(`${API_BASE_URL}/clientes/${id}`);
       return response.data;
     } catch (error) {
       console.error(`Error al obtener cliente ${id}:`, error);
@@ -91,7 +91,7 @@ class ClienteService {
 
   async create(cliente: CreateClienteDto): Promise<Cliente> {
     try {
-      const response = await axios.post<Cliente>(`${API_URL}/clientes`, cliente);
+      const response = await axios.post<Cliente>(`${API_BASE_URL}/clientes`, cliente);
       return response.data;
     } catch (error) {
       console.error('Error al crear cliente:', error);
@@ -101,7 +101,7 @@ class ClienteService {
 
   async update(id: number, cliente: UpdateClienteDto): Promise<Cliente> {
     try {
-      const response = await axios.put<Cliente>(`${API_URL}/clientes/${id}`, cliente);
+      const response = await axios.put<Cliente>(`${API_BASE_URL}/clientes/${id}`, cliente);
       return response.data;
     } catch (error) {
       console.error(`Error al actualizar cliente ${id}:`, error);
@@ -111,7 +111,7 @@ class ClienteService {
 
   async delete(id: number): Promise<void> {
     try {
-      await axios.delete(`${API_URL}/clientes/${id}`);
+      await axios.delete(`${API_BASE_URL}/clientes/${id}`);
     } catch (error) {
       console.error(`Error al eliminar cliente ${id}:`, error);
       throw error;
@@ -120,7 +120,7 @@ class ClienteService {
 
   async getByIdentificacion(numIdentificacion: string): Promise<Cliente | null> {
     try {
-      const response = await axios.get<Cliente[]>(`${API_URL}/clientes`, {
+      const response = await axios.get<Cliente[]>(`${API_BASE_URL}/clientes`, {
         params: { numIdentificacion }
       });
       return response.data[0] || null;
@@ -132,7 +132,7 @@ class ClienteService {
 
   async getByCurp(curp: string): Promise<Cliente | null> {
     try {
-      const response = await axios.get<Cliente[]>(`${API_URL}/clientes`, {
+      const response = await axios.get<Cliente[]>(`${API_BASE_URL}/clientes`, {
         params: { curp }
       });
       return response.data[0] || null;
@@ -144,7 +144,7 @@ class ClienteService {
 
   async getByCorreo(correo: string): Promise<Cliente | null> {
     try {
-      const response = await axios.get<Cliente[]>(`${API_URL}/clientes`, {
+      const response = await axios.get<Cliente[]>(`${API_BASE_URL}/clientes`, {
         params: { correo }
       });
       return response.data[0] || null;
