@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { InventoryModal } from '@/components/modals/InventoryModal';
-import vehiculoService, { Vehiculo } from '@/services/vehiculo.service';
+import { vehiculoService, type Vehiculo } from '@/services/vehiculo.service';
 import { toast } from '@/components/ui/use-toast';
 
 export default function InventoryPage() {

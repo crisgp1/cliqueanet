@@ -1,4 +1,4 @@
-import axios, { AxiosInstance, AxiosResponse } from 'axios';
+import axios from 'axios';
 import { API_BASE_URL } from '../config/api.config';
 
 export interface IUsuarioEmpleado {
@@ -40,79 +40,30 @@ interface ApiResponse<T> {
     message: string;
 }
 
-export class EmpleadoService {
-    private static instance: EmpleadoService;
-    private axiosInstance: AxiosInstance;
+class EmpleadoService {
     private baseUrl: string;
 
-    private constructor() {
+    constructor() {
         this.baseUrl = `${API_BASE_URL}/empleados`;
-        this.axiosInstance = axios.create({
-            baseURL: this.baseUrl,
-            headers: this.getAuthHeaders(),
-        });
-
-        this.axiosInstance.interceptors.request.use(config => {
-            const token = localStorage.getItem('token');
-            if (token) {
-                config.headers['Authorization'] = `Bearer ${token}`;
-            }
-            return config;
-        }, error => {
-            return Promise.reject(error);
-        });
-    }
-
-    public static getInstance(): EmpleadoService {
-        if (!EmpleadoService.instance) {
-            EmpleadoService.instance = new EmpleadoService();
-        }
-        return EmpleadoService.instance;
-    }
-
-    private getAuthHeaders() {
-        const token = localStorage.getItem('token');
-        return {
-            'Authorization': `Bearer ${token || ''}`,
-            'Content-Type': 'application/json'
-        };
-    }
-
-    private handleError(error: any): Error {
-        if (axios.isAxiosError(error)) {
-            if (error.response) {
-                const message = error.response.data.message || 'Error en la solicitud del empleado';
-                return new Error(message);
-            } else if (error.request) {
-                return new Error('No se recibió respuesta del servidor');
-            } else {
-                return new Error('Error al procesar la solicitud del empleado');
-            }
-        }
-        return new Error('Error desconocido al procesar la solicitud del empleado');
     }
 
     public async obtenerEmpleados(): Promise<IEmpleado[]> {
         try {
-            const response: AxiosResponse<ApiResponse<IEmpleado[]>> = await this.axiosInstance.get('/');
-            if (response.data.success) {
-                return response.data.data;
-            }
-            throw new Error(response.data.message || 'Error al obtener empleados');
+            const response = await axios.get<ApiResponse<IEmpleado[]>>(this.baseUrl);
+            return response.data.data;
         } catch (error) {
-            throw this.handleError(error);
+            console.error('Error al obtener empleados:', error);
+            throw error;
         }
     }
 
     public async obtenerEmpleadoPorId(id: number): Promise<IEmpleado> {
         try {
-            const response: AxiosResponse<ApiResponse<IEmpleado>> = await this.axiosInstance.get(`/${id}`);
-            if (response.data.success) {
-                return response.data.data;
-            }
-            throw new Error(response.data.message || 'Error al obtener el empleado');
+            const response = await axios.get<ApiResponse<IEmpleado>>(`${this.baseUrl}/${id}`);
+            return response.data.data;
         } catch (error) {
-            throw this.handleError(error);
+            console.error(`Error al obtener empleado ${id}:`, error);
+            throw error;
         }
     }
 
@@ -121,13 +72,11 @@ export class EmpleadoService {
         empleado: Omit<IEmpleado, 'id_empleado' | 'idUsuario' | 'usuario' | 'tipoIdentificacion'> 
     }): Promise<IEmpleado> {
         try {
-            const response: AxiosResponse<ApiResponse<IEmpleado>> = await this.axiosInstance.post('/', data);
-            if (response.data.success) {
-                return response.data.data;
-            }
-            throw new Error(response.data.message || 'Error al crear el empleado');
+            const response = await axios.post<ApiResponse<IEmpleado>>(this.baseUrl, data);
+            return response.data.data;
         } catch (error) {
-            throw this.handleError(error);
+            console.error('Error al crear empleado:', error);
+            throw error;
         }
     }
 
@@ -139,35 +88,29 @@ export class EmpleadoService {
         }
     ): Promise<IEmpleado> {
         try {
-            const response: AxiosResponse<ApiResponse<IEmpleado>> = await this.axiosInstance.put(`/${id}`, data);
-            if (response.data.success) {
-                return response.data.data;
-            }
-            throw new Error(response.data.message || 'Error al actualizar el empleado');
+            const response = await axios.put<ApiResponse<IEmpleado>>(`${this.baseUrl}/${id}`, data);
+            return response.data.data;
         } catch (error) {
-            throw this.handleError(error);
+            console.error(`Error al actualizar empleado ${id}:`, error);
+            throw error;
         }
     }
 
     public async desactivarEmpleado(id: number): Promise<void> {
         try {
-            const response: AxiosResponse<ApiResponse<null>> = await this.axiosInstance.put(`/${id}/desactivar`);
-            if (!response.data.success) {
-                throw new Error(response.data.message || 'Error al desactivar el empleado');
-            }
+            await axios.put(`${this.baseUrl}/${id}/desactivar`);
         } catch (error) {
-            throw this.handleError(error);
+            console.error(`Error al desactivar empleado ${id}:`, error);
+            throw error;
         }
     }
 
     public async reactivarEmpleado(id: number): Promise<void> {
         try {
-            const response: AxiosResponse<ApiResponse<null>> = await this.axiosInstance.put(`/${id}/reactivar`);
-            if (!response.data.success) {
-                throw new Error(response.data.message || 'Error al reactivar el empleado');
-            }
+            await axios.put(`${this.baseUrl}/${id}/reactivar`);
         } catch (error) {
-            throw this.handleError(error);
+            console.error(`Error al reactivar empleado ${id}:`, error);
+            throw error;
         }
     }
 
@@ -176,14 +119,12 @@ export class EmpleadoService {
         passwords: { passwordActual: string; passwordNuevo: string; confirmarPassword: string }
     ): Promise<void> {
         try {
-            const response: AxiosResponse<ApiResponse<null>> = await this.axiosInstance.put(`/${id}/password`, passwords);
-            if (!response.data.success) {
-                throw new Error(response.data.message || 'Error al cambiar la contraseña');
-            }
+            await axios.put(`${this.baseUrl}/${id}/password`, passwords);
         } catch (error) {
-            throw this.handleError(error);
+            console.error(`Error al cambiar contraseña del empleado ${id}:`, error);
+            throw error;
         }
     }
 }
 
-export const empleadoService = EmpleadoService.getInstance();
+export const empleadoService = new EmpleadoService();

@@ -50,25 +50,23 @@ export interface UpdateTransaccionDto {
     idTipoTransaccion?: number;
 }
 
-export class TransaccionService {
-    private static instance: TransaccionService;
+interface ApiResponse<T> {
+    success: boolean;
+    data: T;
+    message: string;
+}
+
+class TransaccionService {
     private baseUrl: string;
 
-    private constructor() {
+    constructor() {
         this.baseUrl = `${API_BASE_URL}/transacciones`;
-    }
-
-    public static getInstance(): TransaccionService {
-        if (!TransaccionService.instance) {
-            TransaccionService.instance = new TransaccionService();
-        }
-        return TransaccionService.instance;
     }
 
     public async getAll(): Promise<Transaccion[]> {
         try {
-            const response = await axios.get<Transaccion[]>(this.baseUrl);
-            return response.data;
+            const response = await axios.get<ApiResponse<Transaccion[]>>(this.baseUrl);
+            return response.data.data;
         } catch (error) {
             throw this.handleError(error);
         }
@@ -76,8 +74,8 @@ export class TransaccionService {
 
     public async getById(id: number): Promise<Transaccion> {
         try {
-            const response = await axios.get<Transaccion>(`${this.baseUrl}/${id}`);
-            return response.data;
+            const response = await axios.get<ApiResponse<Transaccion>>(`${this.baseUrl}/${id}`);
+            return response.data.data;
         } catch (error) {
             throw this.handleError(error);
         }
@@ -85,8 +83,8 @@ export class TransaccionService {
 
     public async create(transaccion: CreateTransaccionDto): Promise<Transaccion> {
         try {
-            const response = await axios.post<Transaccion>(this.baseUrl, transaccion);
-            return response.data;
+            const response = await axios.post<ApiResponse<Transaccion>>(this.baseUrl, transaccion);
+            return response.data.data;
         } catch (error) {
             throw this.handleError(error);
         }
@@ -94,8 +92,8 @@ export class TransaccionService {
 
     public async update(id: number, transaccion: UpdateTransaccionDto): Promise<Transaccion> {
         try {
-            const response = await axios.put<Transaccion>(`${this.baseUrl}/${id}`, transaccion);
-            return response.data;
+            const response = await axios.put<ApiResponse<Transaccion>>(`${this.baseUrl}/${id}`, transaccion);
+            return response.data.data;
         } catch (error) {
             throw this.handleError(error);
         }
@@ -121,5 +119,5 @@ export class TransaccionService {
     }
 }
 
-export const transaccionService = TransaccionService.getInstance();
+export const transaccionService = new TransaccionService();
 export default transaccionService;
