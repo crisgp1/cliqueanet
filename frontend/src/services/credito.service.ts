@@ -126,3 +126,4 @@ class CreditoService {
 }
 
 export const creditoService = new CreditoService();
+export default creditoService;

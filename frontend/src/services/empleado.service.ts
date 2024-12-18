@@ -128,3 +128,4 @@ class EmpleadoService {
 }
 
 export const empleadoService = new EmpleadoService();
+export default empleadoService;
